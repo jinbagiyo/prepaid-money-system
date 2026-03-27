@@ -382,7 +382,7 @@
           <span class="search-icon">🔍</span>
           <input class="search-input" placeholder="고객명 또는 연락처 검색..." id="searchInput" oninput="renderCustomerTable()">
         </div>
-        <select class="filter-select" id="statusFilter" onchange="renderCustomerTable()">
+        <select class="filter-select" id="statusFilter" style="display:none" onchange="renderCustomerTable()">
           <option value="">전체 상태</option>
           <option value="active">잔액 있음</option>
           <option value="low">잔액 부족</option>
@@ -407,7 +407,7 @@
           <thead><tr>
             <th>#</th><th>고객 정보</th><th>등록일</th>
             <th>충전 금액</th><th>사용 금액</th><th>잔액</th>
-            <th>상태</th><th>메모</th><th>관리</th>
+            <th>메모</th><th>관리</th>
           </tr></thead>
           <tbody id="tableBody"></tbody>
         </table>
@@ -838,34 +838,91 @@ function renderCustomerTable() {
   });
   document.getElementById('tableCount').textContent = list.length+'명';
   const tbody = document.getElementById('tableBody');
-  if (!list.length) { tbody.innerHTML=`<tr><td colspan="10" class="empty-state">등록된 고객이 없습니다</td></tr>`; return; }
-  tbody.innerHTML = list.map((c,i)=>{
-    const bal=getBalance(c), st=getStatus(c);
-    const bc=st==='active'?'bal-ok':st==='low'?'bal-low':'bal-zero';
-    const badge=st==='active'
-      ?`<span class="badge badge-ok"><span class="badge-dot"></span>잔액 있음</span>`
-      :st==='low'
-      ?`<span class="badge badge-low"><span class="badge-dot"></span>잔액 부족</span>`
-      :`<span class="badge badge-done"><span class="badge-dot"></span>소진</span>`;
-    const memo = c.memo ? `<span style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block" title="${c.memo}">${c.memo}</span>` : `<span style="color:var(--text-dim);font-size:11px">—</span>`;
-    return `<tr>
-      <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
-      <td><div class="cust-cell"><div class="cust-name">${c.name}</div><div class="cust-phone">${c.phone}</div></div></td>
-      <td class="mono" style="color:var(--text-muted);font-size:12px">${fmtDate(c.date)}</td>
-      <td class="amt-paid">${fmt(c.paid)}</td>
-      <td class="amt-used">${fmt(c.used)}</td>
-      <td class="amt-bal ${bc}">${fmt(bal)}</td>
-      <td>${badge}</td>
-      <td>${memo}</td>
-      <td><div class="action-btns">
-        <button class="btn btn-ghost btn-sm" onclick="openHistory(${c.id})">📋</button>
-        <button class="btn btn-success btn-sm" onclick="openCharge(${c.id})">+충전</button>
-        <button class="btn btn-danger btn-sm" onclick="openUseFor(${c.id})">−사용</button>
-        <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">✏️</button>
-        <button class="btn btn-ghost btn-sm" onclick="deleteCustomer(${c.id})" style="color:#dc2626">🗑</button>
-      </div></td>
-    </tr>`;
-  }).join('');
+
+  if (!list.length) {
+    tbody.innerHTML=`<tr><td colspan="9" class="empty-state">등록된 고객이 없습니다</td></tr>`;
+    return;
+  }
+
+  const isMobile = window.innerWidth <= 767;
+
+  if (isMobile) {
+    // ── 모바일: 카드형 ──
+    tbody.innerHTML = list.map((c,i)=>{
+      const bal=getBalance(c), st=getStatus(c);
+      const bc=st==='active'?'bal-ok':st==='low'?'bal-low':'bal-zero';
+      const balColor = st==='active'?'#16a34a':st==='low'?'#d97706':'#dc2626';
+      return `<tr>
+        <td colspan="8" style="padding:0;border-bottom:1px solid #f1f5f9;">
+          <div style="padding:13px 14px;display:flex;flex-direction:column;gap:10px;">
+            <!-- 상단: 이름 + 등록일 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-size:15px;font-weight:700;color:#111827">${c.name}</span>
+                <span style="font-size:12px;color:#6b7280;font-family:var(--mono)">${c.phone}</span>
+              </div>
+              <span style="font-size:11px;color:#9ca3af;font-family:var(--mono)">${fmtDate(c.date)}</span>
+            </div>
+            <!-- 중단: 금액 3칸 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#f8fafc;border-radius:10px;border:1px solid #e2e6ea;overflow:hidden;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;">
+                <span style="font-size:10px;color:#9ca3af;font-weight:700;letter-spacing:0.5px;">충전</span>
+                <span style="font-size:13px;font-weight:700;color:#2563eb;font-family:var(--mono)">${fmt(c.paid)}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-left:1px solid #e2e6ea;border-right:1px solid #e2e6ea;">
+                <span style="font-size:10px;color:#9ca3af;font-weight:700;letter-spacing:0.5px;">사용</span>
+                <span style="font-size:13px;font-weight:700;color:#6b7280;font-family:var(--mono)">${fmt(c.used)}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;">
+                <span style="font-size:10px;color:#9ca3af;font-weight:700;letter-spacing:0.5px;">잔액</span>
+                <span style="font-size:14px;font-weight:800;font-family:var(--mono);color:${balColor}">${fmt(bal)}</span>
+              </div>
+            </div>
+            <!-- 하단: 버튼 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+              <button class="btn btn-ghost btn-sm" style="justify-content:center;font-size:13px;padding:8px 4px;" onclick="openHistory(${c.id})">📋 내역</button>
+              <button class="btn btn-success btn-sm" style="justify-content:center;font-size:13px;padding:8px 4px;" onclick="openCharge(${c.id})">+ 충전</button>
+              <button class="btn btn-danger btn-sm" style="justify-content:center;font-size:13px;padding:8px 4px;" onclick="openUseFor(${c.id})">− 사용</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <button class="btn btn-ghost btn-sm" style="justify-content:center;font-size:13px;padding:8px 4px;" onclick="openEdit(${c.id})">✏️ 수정</button>
+              <button class="btn btn-ghost btn-sm" style="justify-content:center;font-size:13px;padding:8px 4px;color:#dc2626;" onclick="deleteCustomer(${c.id})">🗑 삭제</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } else {
+    // ── PC: 기존 테이블 ──
+    tbody.innerHTML = list.map((c,i)=>{
+      const bal=getBalance(c), st=getStatus(c);
+      const bc=st==='active'?'bal-ok':st==='low'?'bal-low':'bal-zero';
+      const badge=st==='active'
+        ?`<span class="badge badge-ok"><span class="badge-dot"></span>잔액 있음</span>`
+        :st==='low'
+        ?`<span class="badge badge-low"><span class="badge-dot"></span>잔액 부족</span>`
+        :`<span class="badge badge-done"><span class="badge-dot"></span>소진</span>`;
+      const memo = c.memo ? `<span style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block" title="${c.memo}">${c.memo}</span>` : `<span style="color:var(--text-dim);font-size:11px">—</span>`;
+      return `<tr>
+        <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
+        <td><div class="cust-cell"><div class="cust-name">${c.name}</div><div class="cust-phone">${c.phone}</div></div></td>
+        <td class="mono" style="color:var(--text-muted);font-size:12px">${fmtDate(c.date)}</td>
+        <td class="amt-paid">${fmt(c.paid)}</td>
+        <td class="amt-used">${fmt(c.used)}</td>
+        <td class="amt-bal ${bc}">${fmt(bal)}</td>
+        <td>${memo}</td>
+        <td>
+          <div class="action-btns">
+            <button class="btn btn-ghost btn-sm" style="font-size:13px;padding:6px 10px" onclick="openHistory(${c.id})">📋 내역</button>
+            <button class="btn btn-success btn-sm" style="font-size:13px;padding:6px 10px" onclick="openCharge(${c.id})">+ 충전</button>
+            <button class="btn btn-danger btn-sm" style="font-size:13px;padding:6px 10px" onclick="openUseFor(${c.id})">− 사용</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:13px;padding:6px 10px" onclick="openEdit(${c.id})">✏️ 수정</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:13px;padding:6px 10px;color:#dc2626" onclick="deleteCustomer(${c.id})">🗑 삭제</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 // ════════════════════════════════════════════
@@ -1173,6 +1230,9 @@ function toast(msg, type='') {
   document.getElementById('toastArea').appendChild(el);
   setTimeout(()=>el.remove(), 3500);
 }
+
+// 화면 크기 변경 시 테이블 재렌더링
+window.addEventListener('resize', () => renderCustomerTable());
 
 // 오버레이 클릭 닫기
 document.querySelectorAll('.modal-overlay').forEach(el=>{
