@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>음식점 선결제 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f4f6f9; --surface:#ffffff; --surface2:#f0f2f5; --border:#e2e6ea;
+    --accent:#2563eb; --accent2:#1d4ed8;
+    --green:#16a34a; --green-bg:#dcfce7; --green-border:#86efac;
+    --red:#dc2626;   --red-bg:#fee2e2;   --red-border:#fca5a5;
+    --yellow:#b45309;--yellow-bg:#fef9c3;--yellow-border:#fde047;
+    --blue-bg:#dbeafe; --blue-border:#93c5fd; --blue-text:#1e40af;
+    --text:#111827; --text-muted:#6b7280; --text-dim:#9ca3af;
+    --sidebar:#1e293b; --sidebar-text:#94a3b8; --sidebar-active:#f1f5f9;
+    --radius:10px; --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:0 4px 12px rgba(0,0,0,0.10);
+    --mono:'DM Mono',monospace; --sans:'Noto Sans KR',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px;line-height:1.5;}
+  .shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh;}
+
+  /* ── Sidebar ── */
+  .sidebar{background:var(--sidebar);border-right:none;padding:20px 12px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .logo{display:flex;align-items:center;gap:10px;padding:4px 8px 8px;}
+  .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 8px rgba(249,115,22,0.4);}
+  .logo-text{font-size:15px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#f1f5f9;}
+  .logo-sub{font-size:10px;color:#64748b;}
+  .nav-section{display:flex;flex-direction:column;gap:2px;}
+  .nav-label{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;padding:0 10px 7px;text-transform:uppercase;}
+  .nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--sidebar-text);transition:all 0.15s;font-size:13.5px;border:1px solid transparent;}
+  .nav-item:hover{background:rgba(255,255,255,0.07);color:#e2e8f0;}
+  .nav-item.active{background:#2563eb;color:#ffffff;border-color:transparent;box-shadow:0 2px 8px rgba(37,99,235,0.4);}
+  .nav-icon{font-size:15px;width:18px;text-align:center;}
+  .sidebar-divider{height:1px;background:#334155;margin:2px 0;}
+
+  /* ── Main ── */
+  .main{display:flex;flex-direction:column;background:var(--bg);}
+  .topbar{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#ffffff;position:sticky;top:0;z-index:10;box-shadow:var(--shadow);}
+  .topbar-title{font-size:17px;font-weight:700;color:var(--text);}
+  .topbar-sub{font-size:12px;color:var(--text-muted);margin-top:1px;}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-primary{background:#2563eb;color:#fff;box-shadow:0 1px 3px rgba(37,99,235,0.3);}
+  .btn-primary:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 10px rgba(37,99,235,0.35);}
+  .btn-ghost{background:#fff;color:var(--text-muted);border:1px solid var(--border);box-shadow:var(--shadow);}
+  .btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:#cbd5e1;}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+  .btn-danger:hover{background:#fecaca;}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+  .btn-success:hover{background:#bbf7d0;}
+
+  /* ── Views ── */
+  .view{display:none;padding:24px 28px;flex-direction:column;gap:20px;}
+  .view.active{display:flex;animation:fadeIn 0.18s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:none;}}
+
+  /* ── Stats ── */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0;}
+  .stat-card.c-green::before{background:linear-gradient(90deg,#16a34a,#4ade80);}
+  .stat-card.c-blue::before{background:linear-gradient(90deg,#2563eb,#60a5fa);}
+  .stat-card.c-red::before{background:linear-gradient(90deg,#dc2626,#f87171);}
+  .stat-card.c-yellow::before{background:linear-gradient(90deg,#d97706,#fbbf24);}
+  .stat-icon{font-size:22px;margin-bottom:2px;}
+  .stat-label{font-size:11.5px;color:var(--text-muted);font-weight:500;}
+  .stat-value{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-0.5px;color:var(--text);}
+  .stat-delta{font-size:11px;color:var(--text-dim);}
+
+  /* ── Dashboard ── */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .dash-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);}
+  .dash-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+  .alert-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .alert-item:last-child{border-bottom:none;padding-bottom:0;}
+  .alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .alert-name{font-size:13px;font-weight:600;color:var(--text);}
+  .alert-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .progress-bar{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:5px;}
+  .progress-fill{height:100%;border-radius:2px;}
+  .recent-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .recent-item:last-child{border-bottom:none;padding-bottom:0;}
+  .recent-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+  .recent-icon.credit{background:var(--blue-bg);}
+  .recent-icon.debit{background:#fef3c7;}
+  .recent-info{flex:1;min-width:0;}
+  .recent-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .recent-desc{font-size:11px;color:var(--text-muted);}
+  .recent-amt{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap;}
+  .recent-amt.credit{color:#2563eb;}
+  .recent-amt.debit{color:#dc2626;}
+  .chart-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .chart-row:last-child{border-bottom:none;}
+
+  /* ── Toolbar ── */
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .search-wrap{position:relative;flex:1;min-width:180px;}
+  .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:13px;}
+  .search-input{width:100%;padding:9px 11px 9px 34px;background:#fff;border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border 0.15s;box-shadow:var(--shadow);}
+  .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.12);}
+  .search-input::placeholder{color:var(--text-dim);}
+  .filter-select{padding:9px 11px;background:#fff;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-family:var(--sans);font-size:13px;outline:none;cursor:pointer;box-shadow:var(--shadow);}
+  .filter-select:focus{border-color:var(--accent);}
+
+  /* ── Table ── */
+  .table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  .table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#fff;}
+  .table-title{font-size:14px;font-weight:700;color:var(--text);}
+  .table-count{font-size:12px;color:var(--text-muted);background:var(--surface2);padding:2px 10px;border-radius:20px;font-weight:500;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:#f8fafc;}
+  th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;border-bottom:1px solid var(--border);}
+  td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle;color:var(--text);}
+  tr:last-child td{border-bottom:none;}
+  tbody tr{transition:background 0.1s;}
+  tbody tr:hover{background:#f8fafc;}
+  .mono{font-family:var(--mono);font-size:12.5px;}
+  .cust-cell{display:flex;flex-direction:column;gap:2px;}
+  .cust-name{font-weight:600;color:var(--text);}
+  .cust-phone{font-size:11.5px;color:var(--text-muted);font-family:var(--mono);}
+  .amt-paid{color:#2563eb;font-family:var(--mono);font-weight:600;}
+  .amt-used{color:var(--text-muted);font-family:var(--mono);}
+  .amt-bal{font-family:var(--mono);font-weight:700;}
+  .bal-ok{color:#16a34a;}
+  .bal-low{color:#d97706;}
+  .bal-zero{color:#dc2626;}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+  .badge-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+  .badge-low{background:var(--yellow-bg);color:var(--yellow-border);border:1px solid #fde047; color:#92400e;}
+  .badge-done{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+  .badge-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+  .action-btns{display:flex;gap:5px;flex-wrap:wrap;}
+  .tag-chip{display:inline-block;background:var(--blue-bg);color:var(--blue-text);border-radius:4px;padding:2px 8px;font-size:11px;margin:1px;font-weight:500;border:1px solid var(--blue-border);}
+
+  /* ── Modal ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:#fff;border:1px solid var(--border);border-radius:16px;width:520px;max-width:95vw;max-height:92vh;overflow-y:auto;animation:modalIn 0.2s ease;box-shadow:var(--shadow-md);}
+  @keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(0.97);}to{opacity:1;transform:none;}}
+  .modal-header{padding:20px 22px 16px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .modal-title{font-size:16px;font-weight:700;color:var(--text);}
+  .modal-sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
+  .modal-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:2px;line-height:1;border-radius:4px;}
+  .modal-close:hover{color:var(--text);background:var(--surface2);}
+  .modal-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+  .modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:#fafafa;border-radius:0 0 16px 16px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group.full{grid-column:1/-1;}
+  label{font-size:12px;font-weight:600;color:var(--text);letter-spacing:0.2px;}
+  .form-input,.form-textarea,.form-select{padding:9px 12px;background:#fff;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border 0.15s,box-shadow 0.15s;}
+  .form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+  .form-input::placeholder,.form-textarea::placeholder{color:var(--text-dim);}
+  .form-textarea{resize:vertical;min-height:64px;line-height:1.5;}
+  .form-hint{font-size:11px;color:var(--text-dim);}
+  .bal-box{background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:13px 15px;display:flex;flex-direction:column;gap:8px;}
+  .bal-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;}
+  .divider-line{border:none;border-top:1px solid var(--border);margin:3px 0;}
+  .hist-entry{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;}
+  .hist-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+  .hist-icon.credit{background:var(--blue-bg);}
+  .hist-icon.debit{background:#fef3c7;}
+  .hist-info{flex:1;min-width:0;}
+  .hist-desc{font-size:13px;font-weight:600;color:var(--text);}
+  .hist-date{font-size:11px;color:var(--text-muted);margin-top:2px;font-family:var(--mono);}
+  .hist-amt{font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap;}
+  .hist-amt.credit{color:#2563eb;}
+  .hist-amt.debit{color:#dc2626;}
+
+  /* ── Toast ── */
+  .toast-area{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:200;}
+  .toast{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;font-size:13px;min-width:240px;animation:slideUp 0.18s ease;display:flex;gap:8px;align-items:center;box-shadow:var(--shadow-md);color:var(--text);}
+  .toast.success{border-left-color:#16a34a;}
+  .toast.error{border-left-color:#dc2626;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  .flex-gap{display:flex;gap:8px;align-items:center;}
+  .empty-state{text-align:center;padding:30px 20px;color:var(--text-dim);font-size:13px;}
+
+  /* 메뉴 태그 */
+  .menu-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px;}
+  .menu-tag-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all 0.12s;font-family:var(--sans);font-weight:500;}
+  .menu-tag-btn:hover{border-color:#93c5fd;color:var(--blue-text);}
+  .menu-tag-btn.sel{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue-text);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🍽️</div>
+      <div>
+        <div class="logo-text">선결제 관리</div>
+        <div class="logo-sub">음식점 선결제 시스템</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">메뉴</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="showView('dashboard')">
+        <span class="nav-icon">📊</span> 대시보드
+      </div>
+      <div class="nav-item" id="nav-customers" onclick="showView('customers')">
+        <span class="nav-icon">👤</span> 고객 목록
+      </div>
+      <div class="nav-item" id="nav-history" onclick="showView('history')">
+        <span class="nav-icon">📋</span> 사용 내역
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="nav-section">
+      <div class="nav-label">관리</div>
+      <div class="nav-item" onclick="openModal('addCustomer')">
+        <span class="nav-icon">➕</span> 고객 등록
+      </div>
+      <div class="nav-item" onclick="openModal('useAmount')">
+        <span class="nav-icon">🍜</span> 식사 처리
+      </div>
+      <div class="nav-item" onclick="exportCSV()">
+        <span class="nav-icon">⬇️</span> CSV 내보내기
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="viewTitle">대시보드</div>
+        <div class="topbar-sub" id="viewSub">선결제 현황 한눈에 보기</div>
+      </div>
+      <div class="flex-gap">
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇️ 내보내기</button>
+        <button class="btn btn-primary" onclick="openModal('addCustomer')">+ 고객 등록</button>
+      </div>
+    </div>
+
+    <!-- VIEW: 대시보드 -->
+    <div class="view active" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card c-green">
+          <div class="stat-icon">👥</div>
+          <div class="stat-label">등록 고객 수</div>
+          <div class="stat-value" id="stat-total">0명</div>
+          <div class="stat-delta">전체 선결제 고객</div>
+        </div>
+        <div class="stat-card c-blue">
+          <div class="stat-icon">💳</div>
+          <div class="stat-label">총 충전 금액</div>
+          <div class="stat-value" id="stat-paid">0원</div>
+          <div class="stat-delta">누적 선결제액</div>
+        </div>
+        <div class="stat-card c-red">
+          <div class="stat-icon">🍜</div>
+          <div class="stat-label">총 식사 금액</div>
+          <div class="stat-value" id="stat-used">0원</div>
+          <div class="stat-delta">누적 사용액</div>
+        </div>
+        <div class="stat-card c-yellow">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">총 잔액</div>
+          <div class="stat-value" id="stat-balance">0원</div>
+          <div class="stat-delta">현재 잔여 선결제</div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-title">⚠️ 잔액 알림</div>
+          <div id="alertList"><div class="empty-state">알림 없음</div></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">🕐 최근 거래</div>
+          <div id="recentList"><div class="empty-state">거래 없음</div></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">📊 고객별 잔액 현황</div>
+        <div id="balanceChart"></div>
+      </div>
+    </div>
+
+    <!-- VIEW: 고객 목록 -->
+    <div class="view" id="view-customers">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" placeholder="고객명 또는 연락처 검색..." id="searchInput" oninput="renderCustomerTable()">
+        </div>
+        <select class="filter-select" id="statusFilter" onchange="renderCustomerTable()">
+          <option value="">전체 상태</option>
+          <option value="active">잔액 있음</option>
+          <option value="low">잔액 부족</option>
+          <option value="done">잔액 소진</option>
+        </select>
+        <select class="filter-select" id="sortSelect" onchange="renderCustomerTable()">
+          <option value="date_desc">최근 등록순</option>
+          <option value="date_asc">오래된 순</option>
+          <option value="balance_desc">잔액 높은순</option>
+          <option value="balance_asc">잔액 낮은순</option>
+          <option value="name_asc">이름순</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="flex-gap">
+            <span class="table-title">고객 목록</span>
+            <span class="table-count" id="tableCount">0명</span>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>고객 정보</th><th>등록일</th><th>인원</th>
+            <th>충전 금액</th><th>식사 금액</th><th>잔액</th>
+            <th>상태</th><th>선호 메뉴</th><th>관리</th>
+          </tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW: 사용 내역 -->
+    <div class="view" id="view-history">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" placeholder="고객명 검색..." id="histSearch" oninput="renderHistoryTable()">
+        </div>
+        <select class="filter-select" id="histType" onchange="renderHistoryTable()">
+          <option value="">전체 유형</option>
+          <option value="credit">충전</option>
+          <option value="debit">식사</option>
+        </select>
+        <select class="filter-select" id="histSort" onchange="renderHistoryTable()">
+          <option value="date_desc">최신순</option>
+          <option value="date_asc">오래된 순</option>
+          <option value="amount_desc">금액 높은순</option>
+        </select>
+        <span class="table-count" id="histCount">0건</span>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">전체 거래 내역</span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>#</th><th>날짜</th><th>고객명</th><th>연락처</th>
+            <th>유형</th><th>메뉴 / 내역</th><th>인원</th><th>금액</th><th>담당자</th>
+          </tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<div class="toast-area" id="toastArea"></div>
+
+<!-- Modal: 고객 등록 -->
+<div class="modal-overlay" id="modal-addCustomer">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">고객 등록</div><div class="modal-sub">선결제 고객을 등록합니다</div></div>
+      <button class="modal-close" onclick="closeModal('addCustomer')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>고객명 *</label><input class="form-input" id="inp-name" placeholder="홍길동"></div>
+        <div class="form-group"><label>연락처 *</label><input class="form-input" id="inp-phone" placeholder="010-0000-0000" oninput="formatPhone(this)"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="inp-amount" type="number" placeholder="100000" min="0"><span class="form-hint">원 단위 숫자만 입력</span></div>
+        <div class="form-group"><label>등록일</label><input class="form-input" id="inp-date" type="date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>방문 인원 (기본)</label><input class="form-input" id="inp-party" type="number" placeholder="2" min="1" value="2"></div>
+        <div class="form-group"><label>담당 직원</label><input class="form-input" id="inp-staff" placeholder="담당자 이름"></div>
+      </div>
+      <div class="form-group full">
+        <label>선호 메뉴 태그</label>
+        <div class="menu-tags" id="menuTagsAdd"></div>
+      </div>
+      <div class="form-group full"><label>메모</label><textarea class="form-textarea" id="inp-memo" placeholder="알레르기, 단골 특이사항, 선호 좌석 등..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('addCustomer')">취소</button>
+      <button class="btn btn-primary" onclick="addCustomer()">등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 식사 처리 -->
+<div class="modal-overlay" id="modal-useAmount">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">식사 처리</div><div class="modal-sub" id="useModal-sub">고객을 선택해 주세요</div></div>
+      <button class="modal-close" onclick="closeModal('useAmount')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group full">
+        <label>고객 선택 *</label>
+        <select class="form-select" id="use-customer" onchange="onUseCustomerChange()">
+          <option value="">— 고객 선택 —</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>식사 금액 *</label><input class="form-input" id="use-amount" type="number" placeholder="0" min="0"></div>
+        <div class="form-group"><label>방문 인원</label><input class="form-input" id="use-party" type="number" placeholder="2" min="1" value="2"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>식사 날짜</label><input class="form-input" id="use-date" type="date"></div>
+        <div class="form-group"><label>담당 직원</label><input class="form-input" id="use-staff" placeholder="처리 직원"></div>
+      </div>
+      <div class="form-group full"><label>주문 메뉴 *</label><input class="form-input" id="use-desc" placeholder="예) 삼겹살 2인분, 된장찌개 2개"></div>
+      <div class="bal-box" id="use-balbox">
+        <div class="bal-row"><span style="color:var(--text-muted)">충전 금액</span><span class="mono" style="color:var(--accent2)" id="use-paid-disp">—</span></div>
+        <div class="bal-row"><span style="color:var(--text-muted)">사용 금액</span><span class="mono" style="color:var(--red)" id="use-used-disp">—</span></div>
+        <hr class="divider-line">
+        <div class="bal-row"><span style="font-weight:600">잔액</span><span class="mono" style="color:var(--green);font-weight:700" id="use-bal-disp">—</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('useAmount')">취소</button>
+      <button class="btn btn-primary" onclick="processUse()">처리 완료</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 충전 -->
+<div class="modal-overlay" id="modal-chargeAmount">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">충전 처리</div><div class="modal-sub" id="chargeModal-sub">—</div></div>
+      <button class="modal-close" onclick="closeModal('chargeAmount')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="charge-amount" type="number" placeholder="0" min="0"></div>
+        <div class="form-group"><label>충전 날짜</label><input class="form-input" id="charge-date" type="date"></div>
+      </div>
+      <div class="form-group full"><label>비고</label><input class="form-input" id="charge-desc" placeholder="예) 추가 충전, 법인카드 결제 등"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('chargeAmount')">취소</button>
+      <button class="btn btn-primary" onclick="processCharge()">충전하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 개별 내역 -->
+<div class="modal-overlay" id="modal-viewHistory">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <div><div class="modal-title" id="hist-title">—</div><div class="modal-sub" id="hist-sub">—</div></div>
+      <button class="modal-close" onclick="closeModal('viewHistory')">✕</button>
+    </div>
+    <div class="modal-body" id="hist-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('viewHistory')">닫기</button></div>
+  </div>
+</div>
+
+<!-- Modal: 수정 -->
+<div class="modal-overlay" id="modal-editCustomer">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">고객 정보 수정</div></div>
+      <button class="modal-close" onclick="closeModal('editCustomer')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-row">
+        <div class="form-group"><label>고객명</label><input class="form-input" id="edit-name"></div>
+        <div class="form-group"><label>연락처</label><input class="form-input" id="edit-phone" oninput="formatPhone(this)"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>기본 방문 인원</label><input class="form-input" id="edit-party" type="number" min="1"></div>
+        <div class="form-group"><label>담당 직원</label><input class="form-input" id="edit-staff"></div>
+      </div>
+      <div class="form-group full">
+        <label>선호 메뉴 태그</label>
+        <div class="menu-tags" id="menuTagsEdit"></div>
+      </div>
+      <div class="form-group full"><label>메모</label><textarea class="form-textarea" id="edit-memo"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editCustomer')">취소</button>
+      <button class="btn btn-primary" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 메뉴 태그 목록 (음식점 공통) ──
+const MENU_OPTIONS = ['한식','고기','해산물','면류','찌개','술자리','점심정식','도시락','단체예약','채식'];
+
+// ── Data ──
+let customers = JSON.parse(localStorage.getItem('restaurant_prepay_v1') || '[]');
+let activeCustomerId = null;
+let addTagSel = [];
+let editTagSel = [];
+
+function save() { localStorage.setItem('restaurant_prepay_v1', JSON.stringify(customers)); }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmt(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
+function fmtDate(d) { return d ? d.replace(/-/g,'.') : '—'; }
+function getBalance(c) { return c.paid - c.used; }
+function getStatus(c) {
+  const b = getBalance(c);
+  if (b <= 0) return 'done';
+  if (c.paid && b / c.paid < 0.1) return 'low';
+  return 'active';
+}
+function formatPhone(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 7) v = v.replace(/(\d{3})(\d{4})(\d+)/,'$1-$2-$3');
+  else if (v.length > 3) v = v.replace(/(\d{3})(\d+)/,'$1-$2');
+  el.value = v;
+}
+
+// ── Init ──
+window.onload = () => {
+  ['inp-date','use-date','charge-date'].forEach(id => document.getElementById(id).value = today());
+  if (!customers.length) loadSampleData();
+  buildMenuTagsUI('menuTagsAdd', addTagSel);
+  renderAll();
+};
+
+function loadSampleData() {
+  customers = [
+    { id:1, name:'김철수', phone:'010-1111-2222', paid:500000, used:187000, party:4, staff:'홍서준', memo:'법인 단체 고객, 매주 금요일 방문', tags:['고기','술자리','단체예약'], date:'2025-01-05', history:[
+      {type:'credit',desc:'최초 선결제 충전',amount:500000,party:0,date:'2025-01-05',staff:'홍서준'},
+      {type:'debit',desc:'삼겹살 4인분, 냉면 4개',amount:96000,party:4,date:'2025-01-10',staff:'홍서준'},
+      {type:'debit',desc:'갈비탕 3개, 막걸리 2병',amount:91000,party:3,date:'2025-01-24',staff:'홍서준'},
+    ]},
+    { id:2, name:'이영희', phone:'010-3333-4444', paid:200000, used:183000, party:2, staff:'김민아', memo:'점심 단골, 혼자 또는 2인', tags:['한식','점심정식','면류'], date:'2025-02-10', history:[
+      {type:'credit',desc:'선결제 충전',amount:200000,party:0,date:'2025-02-10',staff:'김민아'},
+      {type:'debit',desc:'된장찌개 정식 2인',amount:22000,party:2,date:'2025-02-12',staff:'김민아'},
+      {type:'debit',desc:'비빔밥 2개, 냉면 1개',amount:29000,party:2,date:'2025-02-19',staff:'김민아'},
+      {type:'debit',desc:'점심정식 2인',amount:24000,party:2,date:'2025-02-26',staff:'김민아'},
+      {type:'debit',desc:'삼계탕 2인',amount:36000,party:2,date:'2025-03-05',staff:'김민아'},
+      {type:'debit',desc:'점심정식 2인 + 추가반찬',amount:26000,party:2,date:'2025-03-12',staff:'김민아'},
+      {type:'debit',desc:'순두부찌개 2개',amount:20000,party:2,date:'2025-03-19',staff:'김민아'},
+      {type:'debit',desc:'설렁탕 2개',amount:26000,party:2,date:'2025-03-26',staff:'김민아'},
+    ]},
+    { id:3, name:'박준호', phone:'010-5555-6666', paid:300000, used:0, party:6, staff:'홍서준', memo:'생일파티 예약, 알레르기(땅콩)', tags:['단체예약','해산물'], date:'2025-03-01', history:[
+      {type:'credit',desc:'행사 선결제 충전',amount:300000,party:0,date:'2025-03-01',staff:'홍서준'},
+    ]},
+  ];
+  save();
+}
+
+function renderAll() {
+  updateStats();
+  renderDashboard();
+  renderCustomerTable();
+  renderHistoryTable();
+  populateUseCustomerSelect();
+}
+
+// ── View switching ──
+const VIEW_META = {
+  dashboard: { title:'대시보드',  sub:'선결제 현황 한눈에 보기' },
+  customers:  { title:'고객 목록', sub:'전체 고객 선결제 관리' },
+  history:    { title:'사용 내역', sub:'전체 충전 · 식사 거래 내역' },
+};
+function showView(name) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-'+name).classList.add('active');
+  document.getElementById('viewTitle').textContent = VIEW_META[name].title;
+  document.getElementById('viewSub').textContent   = VIEW_META[name].sub;
+}
+
+// ── Stats ──
+function updateStats() {
+  document.getElementById('stat-total').textContent   = customers.length + '명';
+  document.getElementById('stat-paid').textContent    = fmt(customers.reduce((s,c)=>s+c.paid,0));
+  document.getElementById('stat-used').textContent    = fmt(customers.reduce((s,c)=>s+c.used,0));
+  document.getElementById('stat-balance').textContent = fmt(customers.reduce((s,c)=>s+getBalance(c),0));
+}
+
+// ── Dashboard ──
+function renderDashboard() {
+  // Alerts
+  const alerts = customers.filter(c=>getStatus(c)!=='active').sort((a,b)=>getBalance(a)-getBalance(b));
+  const alertEl = document.getElementById('alertList');
+  alertEl.innerHTML = !alerts.length
+    ? `<div class="empty-state">✅ 알림 고객 없음</div>`
+    : alerts.map(c=>{
+        const st=getStatus(c), col=st==='done'?'#dc2626':'#d97706';
+        const pct=c.paid?Math.round(getBalance(c)/c.paid*100):0;
+        return `<div class="alert-item">
+          <div class="alert-dot" style="background:${col}"></div>
+          <div style="flex:1">
+            <div class="alert-name">${c.name}</div>
+            <div class="alert-sub">${c.phone} · 기본 ${c.party||1}인</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${fmt(getBalance(c))}</div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}% 남음</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  // Recent
+  const all=[];
+  customers.forEach(c=>(c.history||[]).forEach(h=>all.push({...h,customerName:c.name})));
+  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const recentEl = document.getElementById('recentList');
+  recentEl.innerHTML = !all.length
+    ? `<div class="empty-state">거래 없음</div>`
+    : all.slice(0,8).map(h=>`
+        <div class="recent-item">
+          <div class="recent-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
+          <div class="recent-info">
+            <div class="recent-name">${h.customerName}</div>
+            <div class="recent-desc">${h.desc} · ${fmtDate(h.date)}${h.party?` · ${h.party}인`:''}</div>
+          </div>
+          <div class="recent-amt ${h.type}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</div>
+        </div>`).join('');
+
+  // Chart
+  const chartEl = document.getElementById('balanceChart');
+  if (!customers.length) { chartEl.innerHTML=`<div class="empty-state">등록된 고객 없음</div>`; return; }
+  chartEl.innerHTML = [...customers].sort((a,b)=>getBalance(b)-getBalance(a)).map(c=>{
+    const pct=c.paid?Math.round(getBalance(c)/c.paid*100):0;
+    const st=getStatus(c), col=st==='active'?'#16a34a':st==='low'?'#d97706':'#dc2626';
+    return `<div class="chart-row">
+      <div style="width:76px;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+      <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;border:1px solid #e2e6ea">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:4px"></div>
+      </div>
+      <div style="width:86px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${fmt(getBalance(c))}</div>
+      <div style="width:36px;text-align:right;font-size:11px;color:var(--text-dim)">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Customer Table ──
+function renderCustomerTable() {
+  const q=( document.getElementById('searchInput').value||'').toLowerCase();
+  const sf=document.getElementById('statusFilter').value;
+  const so=document.getElementById('sortSelect').value;
+  let list=customers.filter(c=>{
+    return (c.name.toLowerCase().includes(q)||c.phone.includes(q))&&(!sf||getStatus(c)===sf);
+  });
+  list.sort((a,b)=>{
+    if(so==='date_desc') return new Date(b.date)-new Date(a.date);
+    if(so==='date_asc')  return new Date(a.date)-new Date(b.date);
+    if(so==='balance_desc') return getBalance(b)-getBalance(a);
+    if(so==='balance_asc')  return getBalance(a)-getBalance(b);
+    if(so==='name_asc') return a.name.localeCompare(b.name,'ko');
+    return 0;
+  });
+  document.getElementById('tableCount').textContent=list.length+'명';
+  const tbody=document.getElementById('tableBody');
+  if(!list.length){ tbody.innerHTML=`<tr><td colspan="10" class="empty-state">등록된 고객이 없습니다</td></tr>`; return; }
+  tbody.innerHTML=list.map((c,i)=>{
+    const bal=getBalance(c), st=getStatus(c);
+    const bc=st==='active'?'bal-ok':st==='low'?'bal-low':'bal-zero';
+    const badge=st==='active'
+      ?`<span class="badge badge-ok"><span class="badge-dot"></span>잔액 있음</span>`
+      :st==='low'
+      ?`<span class="badge badge-low"><span class="badge-dot"></span>잔액 부족</span>`
+      :`<span class="badge badge-done"><span class="badge-dot"></span>소진</span>`;
+    const tags=(c.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('') || `<span style="color:var(--text-dim);font-size:11px">—</span>`;
+    return `<tr>
+      <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
+      <td><div class="cust-cell"><div class="cust-name">${c.name}</div><div class="cust-phone">${c.phone}</div></div></td>
+      <td class="mono" style="color:var(--text-muted);font-size:12px">${fmtDate(c.date)}</td>
+      <td style="color:var(--text-muted);font-size:12px">${c.party||1}인</td>
+      <td class="amt-paid">${fmt(c.paid)}</td>
+      <td class="amt-used">${fmt(c.used)}</td>
+      <td class="amt-bal ${bc}">${fmt(bal)}</td>
+      <td>${badge}</td>
+      <td>${tags}</td>
+      <td><div class="action-btns">
+        <button class="btn btn-ghost btn-sm" onclick="openHistory(${c.id})">📋</button>
+        <button class="btn btn-success btn-sm" onclick="openCharge(${c.id})">+충전</button>
+        <button class="btn btn-danger btn-sm" onclick="openUseFor(${c.id})">🍜식사</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteCustomer(${c.id})" style="color:var(--red)">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── History Table ──
+function renderHistoryTable() {
+  const q=(document.getElementById('histSearch').value||'').toLowerCase();
+  const tp=document.getElementById('histType').value;
+  const so=document.getElementById('histSort').value;
+  const all=[];
+  customers.forEach(c=>(c.history||[]).forEach(h=>{
+    if((!q||c.name.toLowerCase().includes(q))&&(!tp||h.type===tp))
+      all.push({...h,customerName:c.name,phone:c.phone});
+  }));
+  all.sort((a,b)=>so==='date_asc'?new Date(a.date)-new Date(b.date):so==='amount_desc'?b.amount-a.amount:new Date(b.date)-new Date(a.date));
+  document.getElementById('histCount').textContent=all.length+'건';
+  const tbody=document.getElementById('histBody');
+  if(!all.length){ tbody.innerHTML=`<tr><td colspan="9" class="empty-state">내역 없음</td></tr>`; return; }
+  tbody.innerHTML=all.map((h,i)=>{
+    const typeLabel=h.type==='credit'?`<span class="badge badge-ok">💳 충전</span>`:`<span class="badge badge-done">🍜 식사</span>`;
+    const col=h.type==='credit'?'var(--accent2)':'var(--red)';
+    return `<tr>
+      <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
+      <td class="mono" style="font-size:12px;color:var(--text-muted)">${fmtDate(h.date)}</td>
+      <td style="font-weight:500">${h.customerName}</td>
+      <td class="mono" style="font-size:12px;color:var(--text-muted)">${h.phone}</td>
+      <td>${typeLabel}</td>
+      <td style="font-size:12.5px">${h.desc}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${h.party||'—'}</td>
+      <td class="mono" style="font-weight:600;color:${col}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${h.staff||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Menu tag UI ──
+function buildMenuTagsUI(containerId, selArr) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = MENU_OPTIONS.map(t=>`
+    <button class="menu-tag-btn${selArr.includes(t)?' sel':''}" onclick="toggleTag(this,'${t}','${containerId}')">${t}</button>`).join('');
+}
+function toggleTag(btn, tag, containerId) {
+  const arr = containerId === 'menuTagsAdd' ? addTagSel : editTagSel;
+  const idx = arr.indexOf(tag);
+  if (idx === -1) arr.push(tag); else arr.splice(idx,1);
+  btn.classList.toggle('sel');
+}
+
+// ── Customer Select (식사 처리 모달) ──
+function populateUseCustomerSelect() {
+  const sel = document.getElementById('use-customer');
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">— 고객 선택 —</option>` +
+    customers.filter(c=>getBalance(c)>0).map(c=>`<option value="${c.id}">${c.name} (잔액 ${fmt(getBalance(c))})</option>`).join('');
+  if (prev) sel.value = prev;
+}
+function onUseCustomerChange() {
+  const id = parseInt(document.getElementById('use-customer').value);
+  if (!id) return;
+  const c = customers.find(x=>x.id===id);
+  activeCustomerId = c.id;
+  document.getElementById('useModal-sub').textContent = `${c.name} · ${c.phone}`;
+  document.getElementById('use-paid-disp').textContent = fmt(c.paid);
+  document.getElementById('use-used-disp').textContent = fmt(c.used);
+  document.getElementById('use-bal-disp').textContent  = fmt(getBalance(c));
+  document.getElementById('use-party').value = c.party||2;
+}
+
+// ── Add Customer ──
+function addCustomer() {
+  const name=document.getElementById('inp-name').value.trim();
+  const phone=document.getElementById('inp-phone').value.trim();
+  const amount=parseInt(document.getElementById('inp-amount').value);
+  const date=document.getElementById('inp-date').value||today();
+  const party=parseInt(document.getElementById('inp-party').value)||2;
+  const staff=document.getElementById('inp-staff').value.trim();
+  const memo=document.getElementById('inp-memo').value.trim();
+  if(!name)  return toast('고객명을 입력해 주세요','error');
+  if(!phone) return toast('연락처를 입력해 주세요','error');
+  if(!amount||amount<=0) return toast('올바른 충전 금액을 입력해 주세요','error');
+  customers.push({id:Date.now(),name,phone,paid:amount,used:0,party,staff,memo,tags:[...addTagSel],date,
+    history:[{type:'credit',desc:'최초 선결제 충전',amount,party:0,date,staff}]});
+  save(); renderAll(); closeModal('addCustomer');
+  ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inp-party').value=2;
+  document.getElementById('inp-date').value=today();
+  addTagSel.length=0; buildMenuTagsUI('menuTagsAdd',addTagSel);
+  toast(`${name} 고객이 등록되었습니다`,'success');
+}
+
+// ── Use (사이드바에서 열기) ──
+function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
+
+// 고객 목록에서 바로 열기
+function openUseFor(id) {
+  populateUseCustomerSelect();
+  document.getElementById('use-customer').value = id;
+  activeCustomerId = id;
+  onUseCustomerChange();
+  ['use-amount','use-desc','use-staff'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('use-date').value=today();
+  openModal('useAmount');
+}
+
+function processUse() {
+  const selId=parseInt(document.getElementById('use-customer').value);
+  if(!selId) return toast('고객을 선택해 주세요','error');
+  const c=customers.find(x=>x.id===selId);
+  const amount=parseInt(document.getElementById('use-amount').value);
+  const desc=document.getElementById('use-desc').value.trim();
+  const date=document.getElementById('use-date').value||today();
+  const party=parseInt(document.getElementById('use-party').value)||1;
+  const staff=document.getElementById('use-staff').value.trim();
+  if(!amount||amount<=0) return toast('식사 금액을 입력해 주세요','error');
+  if(!desc) return toast('주문 메뉴를 입력해 주세요','error');
+  if(amount>getBalance(c)) return toast('잔액이 부족합니다','error');
+  c.used+=amount;
+  c.history.push({type:'debit',desc,amount,party,date,staff});
+  save(); renderAll(); closeModal('useAmount');
+  toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`,'success');
+}
+
+// ── Charge ──
+function openCharge(id) {
+  activeCustomerId=id;
+  const c=customers.find(x=>x.id===id);
+  document.getElementById('chargeModal-sub').textContent=`${c.name} · ${c.phone}`;
+  ['charge-amount','charge-desc'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('charge-date').value=today();
+  openModal('chargeAmount');
+}
+function processCharge() {
+  const c=customers.find(x=>x.id===activeCustomerId);
+  const amount=parseInt(document.getElementById('charge-amount').value);
+  const desc=document.getElementById('charge-desc').value.trim()||'추가 충전';
+  const date=document.getElementById('charge-date').value||today();
+  if(!amount||amount<=0) return toast('충전 금액을 입력해 주세요','error');
+  c.paid+=amount;
+  c.history.push({type:'credit',desc,amount,party:0,date});
+  save(); renderAll(); closeModal('chargeAmount');
+  toast(`${fmt(amount)} 충전 완료`,'success');
+}
+
+// ── History Modal ──
+function openHistory(id) {
+  const c=customers.find(x=>x.id===id);
+  document.getElementById('hist-title').textContent=`${c.name} 거래 내역`;
+  document.getElementById('hist-sub').textContent=`${c.phone} · 잔액 ${fmt(getBalance(c))}`;
+  const body=document.getElementById('hist-body');
+  body.innerHTML=(!c.history||!c.history.length)
+    ? `<p class="empty-state">내역 없음</p>`
+    : [...c.history].reverse().map(h=>`
+        <div class="hist-entry">
+          <div class="hist-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
+          <div class="hist-info">
+            <div class="hist-desc">${h.desc}${h.party?` <span style="color:var(--text-muted);font-size:11px">(${h.party}인)</span>`:''}</div>
+            <div class="hist-date">${fmtDate(h.date)}${h.staff?' · '+h.staff:''}</div>
+          </div>
+          <div class="hist-amt ${h.type}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</div>
+        </div>`).join('');
+  openModal('viewHistory');
+}
+
+// ── Edit ──
+function openEdit(id) {
+  const c=customers.find(x=>x.id===id);
+  document.getElementById('edit-id').value=c.id;
+  document.getElementById('edit-name').value=c.name;
+  document.getElementById('edit-phone').value=c.phone;
+  document.getElementById('edit-party').value=c.party||2;
+  document.getElementById('edit-staff').value=c.staff||'';
+  document.getElementById('edit-memo').value=c.memo||'';
+  editTagSel.length=0;
+  (c.tags||[]).forEach(t=>editTagSel.push(t));
+  buildMenuTagsUI('menuTagsEdit',editTagSel);
+  openModal('editCustomer');
+}
+function saveEdit() {
+  const id=parseInt(document.getElementById('edit-id').value);
+  const c=customers.find(x=>x.id===id);
+  c.name=document.getElementById('edit-name').value.trim()||c.name;
+  c.phone=document.getElementById('edit-phone').value.trim()||c.phone;
+  c.party=parseInt(document.getElementById('edit-party').value)||c.party;
+  c.staff=document.getElementById('edit-staff').value.trim();
+  c.memo=document.getElementById('edit-memo').value.trim();
+  c.tags=[...editTagSel];
+  save(); renderAll(); closeModal('editCustomer');
+  toast('수정이 저장되었습니다','success');
+}
+
+// ── Delete ──
+function deleteCustomer(id) {
+  const c=customers.find(x=>x.id===id);
+  if(!confirm(`'${c.name}' 고객을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  customers=customers.filter(x=>x.id!==id);
+  save(); renderAll();
+  toast(`${c.name} 고객이 삭제되었습니다`);
+}
+
+// ── CSV ──
+function exportCSV() {
+  const rows=[['번호','고객명','연락처','등록일','기본인원','충전금액','식사금액','잔액','선호메뉴','담당자','메모','상태']];
+  customers.forEach((c,i)=>{
+    const stKo=getStatus(c)==='active'?'잔액있음':getStatus(c)==='low'?'잔액부족':'소진';
+    rows.push([i+1,c.name,c.phone,c.date,c.party||1,c.paid,c.used,getBalance(c),(c.tags||[]).join('/'),c.staff||'',c.memo||'',stKo]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=Object.assign(document.createElement('a'),{
+    href:URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
+    download:`음식점_선결제_${today()}.csv`
+  });
+  a.click();
+  toast('CSV 파일이 다운로드되었습니다','success');
+}
+
+// ── Toast ──
+function toast(msg,type='') {
+  const el=Object.assign(document.createElement('div'),{className:`toast ${type}`});
+  el.innerHTML=`<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span> ${msg}`;
+  document.getElementById('toastArea').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// close overlay click
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
