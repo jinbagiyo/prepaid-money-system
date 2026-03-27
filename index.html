@@ -367,6 +367,13 @@
 
 <div class="toast-area" id="toastArea"></div>
 
+<!-- 로딩 오버레이 -->
+<div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.75);backdrop-filter:blur(2px);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="width:36px;height:36px;border:3px solid #e2e6ea;border-top-color:#2563eb;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+  <div style="font-size:13px;color:#6b7280;font-family:'Noto Sans KR',sans-serif;">저장 중...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+
 <!-- Modal: 고객 등록 -->
 <div class="modal-overlay" id="modal-addCustomer">
   <div class="modal">
@@ -501,28 +508,48 @@
 </div>
 
 <script>
-// ── 메뉴 태그 목록 (음식점 공통) ──
+// ════════════════════════════════════════════
+//  Supabase 설정
+// ════════════════════════════════════════════
+const SUPA_URL = 'https://wcziildiexrarkexmtuj.supabase.co';
+const SUPA_KEY = 'sb_publishable_Ynr0ktXoAvy2FhVM2MTacw__TAYIacg';
+
+async function sb(path, options = {}) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${SUPA_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || '',
+      ...options.headers
+    },
+    method: options.method || 'GET',
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ════════════════════════════════════════════
+//  전역 상태
+// ════════════════════════════════════════════
 const MENU_OPTIONS = ['한식','고기','해산물','면류','찌개','술자리','점심정식','도시락','단체예약','채식'];
-
-// ── Data ──
-const STORAGE_KEY = 'restaurant_prepay_v3';
-// 이전 버전 데이터 초기화
-['restaurant_prepay_v1','restaurant_prepay_v2','prepay_v2','prepay_customers'].forEach(k => localStorage.removeItem(k));
-
-let customers = [];
-try { customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { customers = []; }
-
+let customers = [];          // { ...customer, history: [...transactions] }
 let activeCustomerId = null;
-let addTagSel = [];
+let addTagSel  = [];
 let editTagSel = [];
 
-function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(customers)); } catch(e) { console.error('저장 실패', e); }
-}
-function today() { return new Date().toISOString().slice(0,10); }
-function fmt(n) { return Number(n||0).toLocaleString('ko-KR') + '원'; }
-function fmtDate(d) { return d ? d.replace(/-/g,'.') : '—'; }
-function getBalance(c) { return (c.paid||0) - (c.used||0); }
+// ════════════════════════════════════════════
+//  유틸
+// ════════════════════════════════════════════
+function today()      { return new Date().toISOString().slice(0,10); }
+function fmt(n)       { return Number(n||0).toLocaleString('ko-KR') + '원'; }
+function fmtDate(d)   { return d ? String(d).slice(0,10).replace(/-/g,'.') : '—'; }
+function getBalance(c){ return (c.paid||0) - (c.used||0); }
 function getStatus(c) {
   const b = getBalance(c);
   if (b <= 0) return 'done';
@@ -531,19 +558,61 @@ function getStatus(c) {
 }
 function formatPhone(el) {
   let v = el.value.replace(/\D/g,'').slice(0,11);
-  if (v.length > 7) v = v.replace(/(\d{3})(\d{4})(\d+)/,'$1-$2-$3');
+  if (v.length > 7)      v = v.replace(/(\d{3})(\d{4})(\d+)/,'$1-$2-$3');
   else if (v.length > 3) v = v.replace(/(\d{3})(\d+)/,'$1-$2');
   el.value = v;
 }
 
-// ── Init ──
+// 로딩 오버레이
+function setLoading(on) {
+  document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+}
+
+// ════════════════════════════════════════════
+//  DB 로드
+// ════════════════════════════════════════════
+async function loadAll() {
+  setLoading(true);
+  try {
+    // 고객 전체
+    const cRows = await sb('customers?select=*&order=created_at.asc');
+    // 거래 전체
+    const tRows = await sb('transactions?select=*&order=created_at.asc');
+
+    // 고객별로 history 붙이기
+    customers = (cRows || []).map(c => ({
+      ...c,
+      tags: c.tags || [],
+      history: (tRows || [])
+        .filter(t => t.customer_id === c.id)
+        .map(t => ({
+          type:  t.type,
+          description: t.description,
+          amount: t.amount,
+          party: t.party || 0,
+          date:  t.date,
+          staff: t.staff || ''
+        }))
+    }));
+  } catch(e) {
+    toast('데이터 불러오기 실패: ' + e.message, 'error');
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+  renderAll();
+}
+
+// ════════════════════════════════════════════
+//  Init
+// ════════════════════════════════════════════
 window.onload = () => {
   ['inp-date','use-date','charge-date'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today();
   });
   buildMenuTagsUI('menuTagsAdd', addTagSel);
-  renderAll();
+  loadAll();
 };
 
 function renderAll() {
@@ -554,7 +623,9 @@ function renderAll() {
   populateUseCustomerSelect();
 }
 
-// ── View switching ──
+// ════════════════════════════════════════════
+//  뷰 전환
+// ════════════════════════════════════════════
 const VIEW_META = {
   dashboard: { title:'대시보드',  sub:'선결제 현황 한눈에 보기' },
   customers:  { title:'고객 목록', sub:'전체 고객 선결제 관리' },
@@ -569,17 +640,20 @@ function showView(name) {
   document.getElementById('viewSub').textContent   = VIEW_META[name].sub;
 }
 
-// ── Stats ──
+// ════════════════════════════════════════════
+//  통계
+// ════════════════════════════════════════════
 function updateStats() {
   document.getElementById('stat-total').textContent   = customers.length + '명';
-  document.getElementById('stat-paid').textContent    = fmt(customers.reduce((s,c)=>s+c.paid,0));
-  document.getElementById('stat-used').textContent    = fmt(customers.reduce((s,c)=>s+c.used,0));
+  document.getElementById('stat-paid').textContent    = fmt(customers.reduce((s,c)=>s+(c.paid||0),0));
+  document.getElementById('stat-used').textContent    = fmt(customers.reduce((s,c)=>s+(c.used||0),0));
   document.getElementById('stat-balance').textContent = fmt(customers.reduce((s,c)=>s+getBalance(c),0));
 }
 
-// ── Dashboard ──
+// ════════════════════════════════════════════
+//  대시보드
+// ════════════════════════════════════════════
 function renderDashboard() {
-  // Alerts
   const alerts = customers.filter(c=>getStatus(c)!=='active').sort((a,b)=>getBalance(a)-getBalance(b));
   const alertEl = document.getElementById('alertList');
   alertEl.innerHTML = !alerts.length
@@ -601,8 +675,7 @@ function renderDashboard() {
         </div>`;
       }).join('');
 
-  // Recent
-  const all=[];
+  const all = [];
   customers.forEach(c=>(c.history||[]).forEach(h=>all.push({...h,customerName:c.name})));
   all.sort((a,b)=>new Date(b.date)-new Date(a.date));
   const recentEl = document.getElementById('recentList');
@@ -613,12 +686,11 @@ function renderDashboard() {
           <div class="recent-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
           <div class="recent-info">
             <div class="recent-name">${h.customerName}</div>
-            <div class="recent-desc">${h.desc} · ${fmtDate(h.date)}${h.party?` · ${h.party}인`:''}</div>
+            <div class="recent-desc">${h.description} · ${fmtDate(h.date)}${h.party?` · ${h.party}인`:''}</div>
           </div>
           <div class="recent-amt ${h.type}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</div>
         </div>`).join('');
 
-  // Chart
   const chartEl = document.getElementById('balanceChart');
   if (!customers.length) { chartEl.innerHTML=`<div class="empty-state">등록된 고객 없음</div>`; return; }
   chartEl.innerHTML = [...customers].sort((a,b)=>getBalance(b)-getBalance(a)).map(c=>{
@@ -635,26 +707,28 @@ function renderDashboard() {
   }).join('');
 }
 
-// ── Customer Table ──
+// ════════════════════════════════════════════
+//  고객 테이블
+// ════════════════════════════════════════════
 function renderCustomerTable() {
-  const q=( document.getElementById('searchInput').value||'').toLowerCase();
-  const sf=document.getElementById('statusFilter').value;
-  const so=document.getElementById('sortSelect').value;
-  let list=customers.filter(c=>{
-    return (c.name.toLowerCase().includes(q)||c.phone.includes(q))&&(!sf||getStatus(c)===sf);
-  });
+  const q  = (document.getElementById('searchInput').value||'').toLowerCase();
+  const sf = document.getElementById('statusFilter').value;
+  const so = document.getElementById('sortSelect').value;
+  let list = customers.filter(c =>
+    (c.name.toLowerCase().includes(q)||c.phone.includes(q)) && (!sf||getStatus(c)===sf)
+  );
   list.sort((a,b)=>{
-    if(so==='date_desc') return new Date(b.date)-new Date(a.date);
-    if(so==='date_asc')  return new Date(a.date)-new Date(b.date);
+    if(so==='date_desc')    return new Date(b.date)-new Date(a.date);
+    if(so==='date_asc')     return new Date(a.date)-new Date(b.date);
     if(so==='balance_desc') return getBalance(b)-getBalance(a);
     if(so==='balance_asc')  return getBalance(a)-getBalance(b);
-    if(so==='name_asc') return a.name.localeCompare(b.name,'ko');
+    if(so==='name_asc')     return a.name.localeCompare(b.name,'ko');
     return 0;
   });
-  document.getElementById('tableCount').textContent=list.length+'명';
-  const tbody=document.getElementById('tableBody');
-  if(!list.length){ tbody.innerHTML=`<tr><td colspan="10" class="empty-state">등록된 고객이 없습니다</td></tr>`; return; }
-  tbody.innerHTML=list.map((c,i)=>{
+  document.getElementById('tableCount').textContent = list.length+'명';
+  const tbody = document.getElementById('tableBody');
+  if (!list.length) { tbody.innerHTML=`<tr><td colspan="10" class="empty-state">등록된 고객이 없습니다</td></tr>`; return; }
+  tbody.innerHTML = list.map((c,i)=>{
     const bal=getBalance(c), st=getStatus(c);
     const bc=st==='active'?'bal-ok':st==='low'?'bal-low':'bal-zero';
     const badge=st==='active'
@@ -662,7 +736,7 @@ function renderCustomerTable() {
       :st==='low'
       ?`<span class="badge badge-low"><span class="badge-dot"></span>잔액 부족</span>`
       :`<span class="badge badge-done"><span class="badge-dot"></span>소진</span>`;
-    const tags=(c.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('') || `<span style="color:var(--text-dim);font-size:11px">—</span>`;
+    const tags=(c.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')||`<span style="color:var(--text-dim);font-size:11px">—</span>`;
     return `<tr>
       <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
       <td><div class="cust-cell"><div class="cust-name">${c.name}</div><div class="cust-phone">${c.phone}</div></div></td>
@@ -678,27 +752,29 @@ function renderCustomerTable() {
         <button class="btn btn-success btn-sm" onclick="openCharge(${c.id})">+충전</button>
         <button class="btn btn-danger btn-sm" onclick="openUseFor(${c.id})">🍜식사</button>
         <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">✏️</button>
-        <button class="btn btn-ghost btn-sm" onclick="deleteCustomer(${c.id})" style="color:var(--red)">🗑</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteCustomer(${c.id})" style="color:#dc2626">🗑</button>
       </div></td>
     </tr>`;
   }).join('');
 }
 
-// ── History Table ──
+// ════════════════════════════════════════════
+//  전체 내역 테이블
+// ════════════════════════════════════════════
 function renderHistoryTable() {
-  const q=(document.getElementById('histSearch').value||'').toLowerCase();
-  const tp=document.getElementById('histType').value;
-  const so=document.getElementById('histSort').value;
-  const all=[];
+  const q  = (document.getElementById('histSearch').value||'').toLowerCase();
+  const tp = document.getElementById('histType').value;
+  const so = document.getElementById('histSort').value;
+  const all = [];
   customers.forEach(c=>(c.history||[]).forEach(h=>{
     if((!q||c.name.toLowerCase().includes(q))&&(!tp||h.type===tp))
-      all.push({...h,customerName:c.name,phone:c.phone});
+      all.push({...h, customerName:c.name, phone:c.phone});
   }));
   all.sort((a,b)=>so==='date_asc'?new Date(a.date)-new Date(b.date):so==='amount_desc'?b.amount-a.amount:new Date(b.date)-new Date(a.date));
-  document.getElementById('histCount').textContent=all.length+'건';
-  const tbody=document.getElementById('histBody');
-  if(!all.length){ tbody.innerHTML=`<tr><td colspan="9" class="empty-state">내역 없음</td></tr>`; return; }
-  tbody.innerHTML=all.map((h,i)=>{
+  document.getElementById('histCount').textContent = all.length+'건';
+  const tbody = document.getElementById('histBody');
+  if (!all.length) { tbody.innerHTML=`<tr><td colspan="9" class="empty-state">내역 없음</td></tr>`; return; }
+  tbody.innerHTML = all.map((h,i)=>{
     const typeLabel=h.type==='credit'?`<span class="badge badge-ok">💳 충전</span>`:`<span class="badge badge-done">🍜 식사</span>`;
     const col=h.type==='credit'?'#2563eb':'#dc2626';
     return `<tr>
@@ -707,7 +783,7 @@ function renderHistoryTable() {
       <td style="font-weight:500">${h.customerName}</td>
       <td class="mono" style="font-size:12px;color:var(--text-muted)">${h.phone}</td>
       <td>${typeLabel}</td>
-      <td style="font-size:12.5px">${h.desc}</td>
+      <td style="font-size:12.5px">${h.description}</td>
       <td style="font-size:12px;color:var(--text-muted)">${h.party||'—'}</td>
       <td class="mono" style="font-weight:600;color:${col}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</td>
       <td style="font-size:12px;color:var(--text-muted)">${h.staff||'—'}</td>
@@ -715,11 +791,15 @@ function renderHistoryTable() {
   }).join('');
 }
 
-// ── Menu tag UI ──
+// ════════════════════════════════════════════
+//  메뉴 태그 UI
+// ════════════════════════════════════════════
 function buildMenuTagsUI(containerId, selArr) {
   const wrap = document.getElementById(containerId);
-  wrap.innerHTML = MENU_OPTIONS.map(t=>`
-    <button class="menu-tag-btn${selArr.includes(t)?' sel':''}" onclick="toggleTag(this,'${t}','${containerId}')">${t}</button>`).join('');
+  if (!wrap) return;
+  wrap.innerHTML = MENU_OPTIONS.map(t=>
+    `<button class="menu-tag-btn${selArr.includes(t)?' sel':''}" onclick="toggleTag(this,'${t}','${containerId}')">${t}</button>`
+  ).join('');
 }
 function toggleTag(btn, tag, containerId) {
   const arr = containerId === 'menuTagsAdd' ? addTagSel : editTagSel;
@@ -728,18 +808,21 @@ function toggleTag(btn, tag, containerId) {
   btn.classList.toggle('sel');
 }
 
-// ── Customer Select (식사 처리 모달) ──
+// ════════════════════════════════════════════
+//  식사 처리 고객 선택
+// ════════════════════════════════════════════
 function populateUseCustomerSelect() {
-  const sel = document.getElementById('use-customer');
+  const sel  = document.getElementById('use-customer');
   const prev = sel.value;
   sel.innerHTML = `<option value="">— 고객 선택 —</option>` +
-    customers.filter(c=>getBalance(c)>0).map(c=>`<option value="${c.id}">${c.name} (잔액 ${fmt(getBalance(c))})</option>`).join('');
+    customers.filter(c=>getBalance(c)>0)
+      .map(c=>`<option value="${c.id}">${c.name} (잔액 ${fmt(getBalance(c))})</option>`).join('');
   if (prev) sel.value = prev;
 }
 function onUseCustomerChange() {
   const id = Number(document.getElementById('use-customer').value);
   if (!id) return;
-  const c = customers.find(x => x.id === id);
+  const c = customers.find(x=>x.id===id);
   if (!c) return;
   activeCustomerId = c.id;
   document.getElementById('useModal-sub').textContent  = `${c.name} · ${c.phone}`;
@@ -749,8 +832,16 @@ function onUseCustomerChange() {
   document.getElementById('use-party').value = c.party || 2;
 }
 
-// ── Add Customer ──
-function addCustomer() {
+// ════════════════════════════════════════════
+//  모달 열기/닫기
+// ════════════════════════════════════════════
+function openModal(id)  { document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
+
+// ════════════════════════════════════════════
+//  고객 등록
+// ════════════════════════════════════════════
+async function addCustomer() {
   const name   = document.getElementById('inp-name').value.trim();
   const phone  = document.getElementById('inp-phone').value.trim();
   const amount = parseInt(document.getElementById('inp-amount').value, 10);
@@ -761,107 +852,150 @@ function addCustomer() {
 
   if (!name)            return toast('고객명을 입력해 주세요', 'error');
   if (!phone)           return toast('연락처를 입력해 주세요', 'error');
-  if (!amount || amount <= 0) return toast('올바른 충전 금액을 입력해 주세요', 'error');
+  if (!amount||amount<=0) return toast('올바른 충전 금액을 입력해 주세요', 'error');
 
-  const newCustomer = {
-    id: Date.now() + Math.floor(Math.random() * 1000),
-    name, phone,
-    paid: amount, used: 0,
-    party, staff, memo,
-    tags: [...addTagSel],
-    date,
-    history: [{type:'credit', desc:'최초 선결제 충전', amount, party:0, date, staff}]
-  };
+  setLoading(true);
+  try {
+    // 1) customers 테이블에 INSERT
+    const rows = await sb('customers?select=*', {
+      method: 'POST',
+      prefer: 'return=representation',
+      body: { name, phone, paid: amount, used: 0, party, staff, memo, tags: addTagSel, date }
+    });
+    const newCust = rows[0];
 
-  customers.push(newCustomer);
-  save();
-  renderAll();
-  closeModal('addCustomer');
+    // 2) 최초 충전 거래 INSERT
+    await sb('transactions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: { customer_id: newCust.id, type:'credit', description:'최초 선결제 충전', amount, party:0, date, staff }
+    });
 
-  // 폼 초기화
-  ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('inp-party').value = 2;
-  document.getElementById('inp-date').value = today();
-  addTagSel.length = 0;
-  buildMenuTagsUI('menuTagsAdd', addTagSel);
-
-  toast(`${name} 고객이 등록되었습니다`, 'success');
+    closeModal('addCustomer');
+    ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('inp-party').value = 2;
+    document.getElementById('inp-date').value  = today();
+    addTagSel.length = 0;
+    buildMenuTagsUI('menuTagsAdd', addTagSel);
+    toast(`${name} 고객이 등록되었습니다`, 'success');
+    await loadAll();
+  } catch(e) {
+    toast('등록 실패: ' + e.message, 'error');
+    console.error(e);
+    setLoading(false);
+  }
 }
 
-// ── Use (사이드바에서 열기) ──
-function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
-function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
-
-// 고객 목록에서 바로 열기
+// ════════════════════════════════════════════
+//  식사 처리
+// ════════════════════════════════════════════
 function openUseFor(id) {
-  const numId = Number(id);
   populateUseCustomerSelect();
-  document.getElementById('use-customer').value = numId;
-  activeCustomerId = numId;
+  document.getElementById('use-customer').value = id;
+  activeCustomerId = Number(id);
   onUseCustomerChange();
-  ['use-amount','use-desc','use-staff'].forEach(i => document.getElementById(i).value = '');
+  ['use-amount','use-desc','use-staff'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('use-date').value = today();
   openModal('useAmount');
 }
 
-function processUse() {
-  const selId = Number(document.getElementById('use-customer').value);
+async function processUse() {
+  const selId  = Number(document.getElementById('use-customer').value);
   if (!selId) return toast('고객을 선택해 주세요', 'error');
-  const c = customers.find(x => x.id === selId);
-  if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
+  const c      = customers.find(x=>x.id===selId);
+  if (!c)     return toast('고객 정보를 찾을 수 없습니다', 'error');
   const amount = parseInt(document.getElementById('use-amount').value, 10);
   const desc   = document.getElementById('use-desc').value.trim();
   const date   = document.getElementById('use-date').value || today();
   const party  = parseInt(document.getElementById('use-party').value, 10) || 1;
   const staff  = document.getElementById('use-staff').value.trim();
-  if (!amount || amount <= 0) return toast('식사 금액을 입력해 주세요', 'error');
-  if (!desc) return toast('주문 메뉴를 입력해 주세요', 'error');
-  if (amount > getBalance(c)) return toast('잔액이 부족합니다', 'error');
-  c.used += amount;
-  c.history.push({type:'debit', desc, amount, party, date, staff});
-  save(); renderAll(); closeModal('useAmount');
-  toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`, 'success');
+  if (!amount||amount<=0) return toast('식사 금액을 입력해 주세요', 'error');
+  if (!desc)              return toast('주문 메뉴를 입력해 주세요', 'error');
+  if (amount>getBalance(c)) return toast('잔액이 부족합니다', 'error');
+
+  setLoading(true);
+  try {
+    // used 업데이트
+    await sb(`customers?id=eq.${selId}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: { used: (c.used||0) + amount }
+    });
+    // 거래 INSERT
+    await sb('transactions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: { customer_id: selId, type:'debit', description: desc, amount, party, date, staff }
+    });
+    closeModal('useAmount');
+    toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`, 'success');
+    await loadAll();
+  } catch(e) {
+    toast('처리 실패: ' + e.message, 'error');
+    console.error(e);
+    setLoading(false);
+  }
 }
 
-// ── Charge ──
+// ════════════════════════════════════════════
+//  충전
+// ════════════════════════════════════════════
 function openCharge(id) {
-  const numId = Number(id);
-  activeCustomerId = numId;
-  const c = customers.find(x => x.id === numId);
+  activeCustomerId = Number(id);
+  const c = customers.find(x=>x.id===Number(id));
   if (!c) return;
   document.getElementById('chargeModal-sub').textContent = `${c.name} · ${c.phone}`;
-  ['charge-amount','charge-desc'].forEach(i => document.getElementById(i).value = '');
+  ['charge-amount','charge-desc'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('charge-date').value = today();
   openModal('chargeAmount');
 }
-function processCharge() {
-  const c = customers.find(x => x.id === activeCustomerId);
+
+async function processCharge() {
+  const c = customers.find(x=>x.id===activeCustomerId);
   if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
   const amount = parseInt(document.getElementById('charge-amount').value, 10);
   const desc   = document.getElementById('charge-desc').value.trim() || '추가 충전';
   const date   = document.getElementById('charge-date').value || today();
-  if (!amount || amount <= 0) return toast('충전 금액을 입력해 주세요', 'error');
-  c.paid += amount;
-  c.history.push({type:'credit', desc, amount, party:0, date});
-  save(); renderAll(); closeModal('chargeAmount');
-  toast(`${fmt(amount)} 충전 완료`, 'success');
+  if (!amount||amount<=0) return toast('충전 금액을 입력해 주세요', 'error');
+
+  setLoading(true);
+  try {
+    await sb(`customers?id=eq.${c.id}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: { paid: (c.paid||0) + amount }
+    });
+    await sb('transactions', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: { customer_id: c.id, type:'credit', description: desc, amount, party:0, date }
+    });
+    closeModal('chargeAmount');
+    toast(`${fmt(amount)} 충전 완료`, 'success');
+    await loadAll();
+  } catch(e) {
+    toast('충전 실패: ' + e.message, 'error');
+    console.error(e);
+    setLoading(false);
+  }
 }
 
-// ── History Modal ──
+// ════════════════════════════════════════════
+//  개별 내역 조회
+// ════════════════════════════════════════════
 function openHistory(id) {
-  const numId = Number(id);
-  const c = customers.find(x => x.id === numId);
+  const c = customers.find(x=>x.id===Number(id));
   if (!c) return;
   document.getElementById('hist-title').textContent = `${c.name} 거래 내역`;
   document.getElementById('hist-sub').textContent   = `${c.phone} · 잔액 ${fmt(getBalance(c))}`;
   const body = document.getElementById('hist-body');
-  body.innerHTML = (!c.history || !c.history.length)
+  body.innerHTML = (!c.history||!c.history.length)
     ? `<p class="empty-state">내역 없음</p>`
     : [...c.history].reverse().map(h=>`
         <div class="hist-entry">
           <div class="hist-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
           <div class="hist-info">
-            <div class="hist-desc">${h.desc}${h.party?` <span style="color:var(--text-muted);font-size:11px">(${h.party}인)</span>`:''}</div>
+            <div class="hist-desc">${h.description}${h.party?` <span style="color:var(--text-muted);font-size:11px">(${h.party}인)</span>`:''}</div>
             <div class="hist-date">${fmtDate(h.date)}${h.staff?' · '+h.staff:''}</div>
           </div>
           <div class="hist-amt ${h.type}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</div>
@@ -869,49 +1003,77 @@ function openHistory(id) {
   openModal('viewHistory');
 }
 
-// ── Edit ──
+// ════════════════════════════════════════════
+//  고객 수정
+// ════════════════════════════════════════════
 function openEdit(id) {
-  const numId = Number(id);
-  const c = customers.find(x => x.id === numId);
+  const c = customers.find(x=>x.id===Number(id));
   if (!c) return;
   document.getElementById('edit-id').value    = c.id;
   document.getElementById('edit-name').value  = c.name;
   document.getElementById('edit-phone').value = c.phone;
   document.getElementById('edit-party').value = c.party || 2;
   document.getElementById('edit-staff').value = c.staff || '';
-  document.getElementById('edit-memo').value  = c.memo || '';
+  document.getElementById('edit-memo').value  = c.memo  || '';
   editTagSel.length = 0;
-  (c.tags || []).forEach(t => editTagSel.push(t));
+  (c.tags||[]).forEach(t=>editTagSel.push(t));
   buildMenuTagsUI('menuTagsEdit', editTagSel);
   openModal('editCustomer');
 }
-function saveEdit() {
+
+async function saveEdit() {
   const id = Number(document.getElementById('edit-id').value);
-  const c  = customers.find(x => x.id === id);
+  const c  = customers.find(x=>x.id===id);
   if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
-  c.name  = document.getElementById('edit-name').value.trim()  || c.name;
-  c.phone = document.getElementById('edit-phone').value.trim() || c.phone;
-  c.party = parseInt(document.getElementById('edit-party').value, 10) || c.party;
-  c.staff = document.getElementById('edit-staff').value.trim();
-  c.memo  = document.getElementById('edit-memo').value.trim();
-  c.tags  = [...editTagSel];
-  save(); renderAll(); closeModal('editCustomer');
-  toast('수정이 저장되었습니다', 'success');
+  const name  = document.getElementById('edit-name').value.trim()  || c.name;
+  const phone = document.getElementById('edit-phone').value.trim() || c.phone;
+  const party = parseInt(document.getElementById('edit-party').value,10) || c.party;
+  const staff = document.getElementById('edit-staff').value.trim();
+  const memo  = document.getElementById('edit-memo').value.trim();
+
+  setLoading(true);
+  try {
+    await sb(`customers?id=eq.${id}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: { name, phone, party, staff, memo, tags: [...editTagSel] }
+    });
+    closeModal('editCustomer');
+    toast('수정이 저장되었습니다', 'success');
+    await loadAll();
+  } catch(e) {
+    toast('수정 실패: ' + e.message, 'error');
+    console.error(e);
+    setLoading(false);
+  }
 }
 
-// ── Delete ──
-function deleteCustomer(id) {
+// ════════════════════════════════════════════
+//  고객 삭제
+// ════════════════════════════════════════════
+async function deleteCustomer(id) {
   const numId = Number(id);
-  const c = customers.find(x => x.id === numId);
+  const c = customers.find(x=>x.id===numId);
   if (!c) return toast('고객을 찾을 수 없습니다', 'error');
-  if (!window.confirm(`'${c.name}' 고객을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-  customers = customers.filter(x => x.id !== numId);
-  save();
-  renderAll();
-  toast(`${c.name} 고객이 삭제되었습니다`);
+  if (!window.confirm(`'${c.name}' 고객을 삭제하시겠습니까?\n거래 내역도 함께 삭제됩니다.`)) return;
+
+  setLoading(true);
+  try {
+    // transactions 먼저 삭제 (CASCADE가 설정돼 있어도 명시적으로)
+    await sb(`transactions?customer_id=eq.${numId}`, { method: 'DELETE' });
+    await sb(`customers?id=eq.${numId}`, { method: 'DELETE' });
+    toast(`${c.name} 고객이 삭제되었습니다`);
+    await loadAll();
+  } catch(e) {
+    toast('삭제 실패: ' + e.message, 'error');
+    console.error(e);
+    setLoading(false);
+  }
 }
 
-// ── CSV ──
+// ════════════════════════════════════════════
+//  CSV 내보내기
+// ════════════════════════════════════════════
 function exportCSV() {
   const rows=[['번호','고객명','연락처','등록일','기본인원','충전금액','식사금액','잔액','선호메뉴','담당자','메모','상태']];
   customers.forEach((c,i)=>{
@@ -927,17 +1089,19 @@ function exportCSV() {
   toast('CSV 파일이 다운로드되었습니다','success');
 }
 
-// ── Toast ──
-function toast(msg,type='') {
-  const el=Object.assign(document.createElement('div'),{className:`toast ${type}`});
-  el.innerHTML=`<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span> ${msg}`;
+// ════════════════════════════════════════════
+//  Toast
+// ════════════════════════════════════════════
+function toast(msg, type='') {
+  const el = Object.assign(document.createElement('div'),{className:`toast ${type}`});
+  el.innerHTML = `<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span> ${msg}`;
   document.getElementById('toastArea').appendChild(el);
-  setTimeout(()=>el.remove(),3000);
+  setTimeout(()=>el.remove(), 3500);
 }
 
-// close overlay click
+// 오버레이 클릭 닫기
 document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
 });
 </script>
 </body>
