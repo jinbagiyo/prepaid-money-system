@@ -21,17 +21,17 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px;line-height:1.5;}
-  .shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh;}
+  .shell{display:grid;grid-template-columns:200px 1fr;min-height:100vh;}
 
   /* ── Sidebar ── */
-  .sidebar{background:var(--sidebar);border-right:none;padding:20px 12px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh;overflow-y:auto;}
-  .logo{display:flex;align-items:center;gap:10px;padding:4px 8px 8px;}
-  .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 8px rgba(249,115,22,0.4);}
-  .logo-text{font-size:15px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#f1f5f9;}
+  .sidebar{background:var(--sidebar);border-right:none;padding:18px 10px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .logo{display:flex;align-items:center;gap:9px;padding:2px 6px 6px;}
+  .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;box-shadow:0 2px 8px rgba(249,115,22,0.4);}
+  .logo-text{font-size:14px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#f1f5f9;}
   .logo-sub{font-size:10px;color:#64748b;}
   .nav-section{display:flex;flex-direction:column;gap:2px;}
   .nav-label{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#475569;padding:0 10px 7px;text-transform:uppercase;}
-  .nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--sidebar-text);transition:all 0.15s;font-size:13.5px;border:1px solid transparent;}
+  .nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--sidebar-text);transition:all 0.15s;font-size:13px;border:1px solid transparent;}
   .nav-item:hover{background:rgba(255,255,255,0.07);color:#e2e8f0;}
   .nav-item.active{background:#2563eb;color:#ffffff;border-color:transparent;box-shadow:0 2px 8px rgba(37,99,235,0.4);}
   .nav-icon{font-size:15px;width:18px;text-align:center;}
@@ -223,7 +223,7 @@
         <span class="nav-icon">➕</span> 고객 등록
       </div>
       <div class="nav-item" onclick="openModal('useAmount')">
-        <span class="nav-icon">🍜</span> 식사 처리
+        <span class="nav-icon">💳</span> 사용 처리
       </div>
       <div class="nav-item" onclick="exportCSV()">
         <span class="nav-icon">⬇️</span> CSV 내보내기
@@ -273,15 +273,9 @@
         </div>
       </div>
 
-      <div class="dash-grid">
-        <div class="dash-card">
-          <div class="dash-card-title">⚠️ 잔액 알림</div>
-          <div id="alertList"><div class="empty-state">알림 없음</div></div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-card-title">🕐 최근 거래</div>
-          <div id="recentList"><div class="empty-state">거래 없음</div></div>
-        </div>
+      <div class="dash-card">
+        <div class="dash-card-title">🕐 최근 거래</div>
+        <div id="recentList"><div class="empty-state">거래 없음</div></div>
       </div>
 
       <div class="dash-card">
@@ -320,9 +314,9 @@
         </div>
         <table>
           <thead><tr>
-            <th>#</th><th>고객 정보</th><th>등록일</th><th>인원</th>
-            <th>충전 금액</th><th>식사 금액</th><th>잔액</th>
-            <th>상태</th><th>선호 메뉴</th><th>관리</th>
+            <th>#</th><th>고객 정보</th><th>등록일</th>
+            <th>충전 금액</th><th>사용 금액</th><th>잔액</th>
+            <th>상태</th><th>메모</th><th>관리</th>
           </tr></thead>
           <tbody id="tableBody"></tbody>
         </table>
@@ -339,7 +333,7 @@
         <select class="filter-select" id="histType" onchange="renderHistoryTable()">
           <option value="">전체 유형</option>
           <option value="credit">충전</option>
-          <option value="debit">식사</option>
+          <option value="debit">사용</option>
         </select>
         <select class="filter-select" id="histSort" onchange="renderHistoryTable()">
           <option value="date_desc">최신순</option>
@@ -355,7 +349,7 @@
         <table>
           <thead><tr>
             <th>#</th><th>날짜</th><th>고객명</th><th>연락처</th>
-            <th>유형</th><th>메뉴 / 내역</th><th>인원</th><th>금액</th><th>담당자</th>
+            <th>유형</th><th>내역</th><th>금액</th><th>담당자</th>
           </tr></thead>
           <tbody id="histBody"></tbody>
         </table>
@@ -390,15 +384,8 @@
         <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="inp-amount" type="number" placeholder="100000" min="0"><span class="form-hint">원 단위 숫자만 입력</span></div>
         <div class="form-group"><label>등록일</label><input class="form-input" id="inp-date" type="date"></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>방문 인원 (기본)</label><input class="form-input" id="inp-party" type="number" placeholder="2" min="1" value="2"></div>
-        <div class="form-group"><label>담당 직원</label><input class="form-input" id="inp-staff" placeholder="담당자 이름"></div>
-      </div>
-      <div class="form-group full">
-        <label>선호 메뉴 태그</label>
-        <div class="menu-tags" id="menuTagsAdd"></div>
-      </div>
-      <div class="form-group full"><label>메모</label><textarea class="form-textarea" id="inp-memo" placeholder="알레르기, 단골 특이사항, 선호 좌석 등..."></textarea></div>
+      <div class="form-group full"><label>담당 직원</label><input class="form-input" id="inp-staff" placeholder="담당자 이름"></div>
+      <div class="form-group full"><label>메모</label><textarea class="form-textarea" id="inp-memo" placeholder="특이사항 등..."></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('addCustomer')">취소</button>
@@ -407,11 +394,11 @@
   </div>
 </div>
 
-<!-- Modal: 식사 처리 -->
+<!-- Modal: 사용 처리 -->
 <div class="modal-overlay" id="modal-useAmount">
   <div class="modal">
     <div class="modal-header">
-      <div><div class="modal-title">식사 처리</div><div class="modal-sub" id="useModal-sub">고객을 선택해 주세요</div></div>
+      <div><div class="modal-title">사용 처리</div><div class="modal-sub" id="useModal-sub">고객을 선택해 주세요</div></div>
       <button class="modal-close" onclick="closeModal('useAmount')">✕</button>
     </div>
     <div class="modal-body">
@@ -422,14 +409,13 @@
         </select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>식사 금액 *</label><input class="form-input" id="use-amount" type="number" placeholder="0" min="0"></div>
-        <div class="form-group"><label>방문 인원</label><input class="form-input" id="use-party" type="number" placeholder="2" min="1" value="2"></div>
+        <div class="form-group"><label>사용 금액 *</label><input class="form-input" id="use-amount" type="number" placeholder="0" min="0"></div>
+        <div class="form-group"><label>날짜</label><input class="form-input" id="use-date" type="date"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>식사 날짜</label><input class="form-input" id="use-date" type="date"></div>
+        <div class="form-group"><label>내역</label><input class="form-input" id="use-desc" placeholder="예) 점심 식사, 회식 등 (선택)"></div>
         <div class="form-group"><label>담당 직원</label><input class="form-input" id="use-staff" placeholder="처리 직원"></div>
       </div>
-      <div class="form-group full"><label>주문 메뉴 *</label><input class="form-input" id="use-desc" placeholder="예) 삼겹살 2인분, 된장찌개 2개"></div>
       <div class="bal-box" id="use-balbox">
         <div class="bal-row"><span style="color:var(--text-muted)">충전 금액</span><span class="mono" style="color:var(--accent2)" id="use-paid-disp">—</span></div>
         <div class="bal-row"><span style="color:var(--text-muted)">사용 금액</span><span class="mono" style="color:var(--red)" id="use-used-disp">—</span></div>
@@ -490,14 +476,7 @@
         <div class="form-group"><label>고객명</label><input class="form-input" id="edit-name"></div>
         <div class="form-group"><label>연락처</label><input class="form-input" id="edit-phone" oninput="formatPhone(this)"></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>기본 방문 인원</label><input class="form-input" id="edit-party" type="number" min="1"></div>
-        <div class="form-group"><label>담당 직원</label><input class="form-input" id="edit-staff"></div>
-      </div>
-      <div class="form-group full">
-        <label>선호 메뉴 태그</label>
-        <div class="menu-tags" id="menuTagsEdit"></div>
-      </div>
+      <div class="form-group full"><label>담당 직원</label><input class="form-input" id="edit-staff"></div>
       <div class="form-group full"><label>메모</label><textarea class="form-textarea" id="edit-memo"></textarea></div>
     </div>
     <div class="modal-footer">
@@ -537,11 +516,8 @@ async function sb(path, options = {}) {
 // ════════════════════════════════════════════
 //  전역 상태
 // ════════════════════════════════════════════
-const MENU_OPTIONS = ['한식','고기','해산물','면류','찌개','술자리','점심정식','도시락','단체예약','채식'];
-let customers = [];          // { ...customer, history: [...transactions] }
+let customers = [];
 let activeCustomerId = null;
-let addTagSel  = [];
-let editTagSel = [];
 
 // ════════════════════════════════════════════
 //  유틸
@@ -611,7 +587,6 @@ window.onload = () => {
     const el = document.getElementById(id);
     if (el) el.value = today();
   });
-  buildMenuTagsUI('menuTagsAdd', addTagSel);
   loadAll();
 };
 
@@ -654,54 +629,56 @@ function updateStats() {
 //  대시보드
 // ════════════════════════════════════════════
 function renderDashboard() {
-  const alerts = customers.filter(c=>getStatus(c)!=='active').sort((a,b)=>getBalance(a)-getBalance(b));
-  const alertEl = document.getElementById('alertList');
-  alertEl.innerHTML = !alerts.length
-    ? `<div class="empty-state">✅ 알림 고객 없음</div>`
-    : alerts.map(c=>{
-        const st=getStatus(c), col=st==='done'?'#dc2626':'#d97706';
-        const pct=c.paid?Math.round(getBalance(c)/c.paid*100):0;
-        return `<div class="alert-item">
-          <div class="alert-dot" style="background:${col}"></div>
-          <div style="flex:1">
-            <div class="alert-name">${c.name}</div>
-            <div class="alert-sub">${c.phone} · 기본 ${c.party||1}인</div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${fmt(getBalance(c))}</div>
-            <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${pct}% 남음</div>
-          </div>
-        </div>`;
-      }).join('');
-
+  // 최근 거래 — 테이블 형태로 15건 표시
   const all = [];
-  customers.forEach(c=>(c.history||[]).forEach(h=>all.push({...h,customerName:c.name})));
+  customers.forEach(c=>(c.history||[]).forEach(h=>all.push({...h, customerName:c.name, phone:c.phone})));
   all.sort((a,b)=>new Date(b.date)-new Date(a.date));
   const recentEl = document.getElementById('recentList');
-  recentEl.innerHTML = !all.length
-    ? `<div class="empty-state">거래 없음</div>`
-    : all.slice(0,8).map(h=>`
-        <div class="recent-item">
-          <div class="recent-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
-          <div class="recent-info">
-            <div class="recent-name">${h.customerName}</div>
-            <div class="recent-desc">${h.description} · ${fmtDate(h.date)}${h.party?` · ${h.party}인`:''}</div>
-          </div>
-          <div class="recent-amt ${h.type}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</div>
-        </div>`).join('');
+  if (!all.length) {
+    recentEl.innerHTML = `<div class="empty-state">거래 없음</div>`;
+  } else {
+    recentEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e2e6ea;">날짜</th>
+            <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e2e6ea;">고객명</th>
+            <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e2e6ea;">유형</th>
+            <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e2e6ea;">내역</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:0.5px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e2e6ea;">금액</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${all.slice(0,15).map(h=>{
+            const typeLabel = h.type==='credit'
+              ? `<span class="badge badge-ok">💳 충전</span>`
+              : `<span class="badge badge-done">💸 사용</span>`;
+            const col = h.type==='credit'?'#2563eb':'#dc2626';
+            const sign = h.type==='credit'?'+':'-';
+            return `<tr style="border-bottom:1px solid #f1f5f9;transition:background 0.1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+              <td style="padding:11px 14px;font-family:var(--mono);font-size:12px;color:#6b7280;">${fmtDate(h.date)}</td>
+              <td style="padding:11px 14px;font-size:13px;font-weight:600;color:#111827;">${h.customerName}</td>
+              <td style="padding:11px 14px;">${typeLabel}</td>
+              <td style="padding:11px 14px;font-size:12.5px;color:#374151;">${h.description||'—'}</td>
+              <td style="padding:11px 14px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;color:${col};">${sign}${fmt(h.amount)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
 
+  // 고객별 잔액 바 차트
   const chartEl = document.getElementById('balanceChart');
   if (!customers.length) { chartEl.innerHTML=`<div class="empty-state">등록된 고객 없음</div>`; return; }
   chartEl.innerHTML = [...customers].sort((a,b)=>getBalance(b)-getBalance(a)).map(c=>{
     const pct=c.paid?Math.round(getBalance(c)/c.paid*100):0;
     const st=getStatus(c), col=st==='active'?'#16a34a':st==='low'?'#d97706':'#dc2626';
     return `<div class="chart-row">
-      <div style="width:76px;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+      <div style="width:80px;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
       <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;border:1px solid #e2e6ea">
         <div style="height:100%;width:${pct}%;background:${col};border-radius:4px"></div>
       </div>
-      <div style="width:86px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${fmt(getBalance(c))}</div>
+      <div style="width:90px;text-align:right;font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${fmt(getBalance(c))}</div>
       <div style="width:36px;text-align:right;font-size:11px;color:var(--text-dim)">${pct}%</div>
     </div>`;
   }).join('');
@@ -736,21 +713,20 @@ function renderCustomerTable() {
       :st==='low'
       ?`<span class="badge badge-low"><span class="badge-dot"></span>잔액 부족</span>`
       :`<span class="badge badge-done"><span class="badge-dot"></span>소진</span>`;
-    const tags=(c.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join('')||`<span style="color:var(--text-dim);font-size:11px">—</span>`;
+    const memo = c.memo ? `<span style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block" title="${c.memo}">${c.memo}</span>` : `<span style="color:var(--text-dim);font-size:11px">—</span>`;
     return `<tr>
       <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
       <td><div class="cust-cell"><div class="cust-name">${c.name}</div><div class="cust-phone">${c.phone}</div></div></td>
       <td class="mono" style="color:var(--text-muted);font-size:12px">${fmtDate(c.date)}</td>
-      <td style="color:var(--text-muted);font-size:12px">${c.party||1}인</td>
       <td class="amt-paid">${fmt(c.paid)}</td>
       <td class="amt-used">${fmt(c.used)}</td>
       <td class="amt-bal ${bc}">${fmt(bal)}</td>
       <td>${badge}</td>
-      <td>${tags}</td>
+      <td>${memo}</td>
       <td><div class="action-btns">
         <button class="btn btn-ghost btn-sm" onclick="openHistory(${c.id})">📋</button>
         <button class="btn btn-success btn-sm" onclick="openCharge(${c.id})">+충전</button>
-        <button class="btn btn-danger btn-sm" onclick="openUseFor(${c.id})">🍜식사</button>
+        <button class="btn btn-danger btn-sm" onclick="openUseFor(${c.id})">−사용</button>
         <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="deleteCustomer(${c.id})" style="color:#dc2626">🗑</button>
       </div></td>
@@ -775,7 +751,7 @@ function renderHistoryTable() {
   const tbody = document.getElementById('histBody');
   if (!all.length) { tbody.innerHTML=`<tr><td colspan="9" class="empty-state">내역 없음</td></tr>`; return; }
   tbody.innerHTML = all.map((h,i)=>{
-    const typeLabel=h.type==='credit'?`<span class="badge badge-ok">💳 충전</span>`:`<span class="badge badge-done">🍜 식사</span>`;
+    const typeLabel=h.type==='credit'?`<span class="badge badge-ok">💳 충전</span>`:`<span class="badge badge-done">💸 사용</span>`;
     const col=h.type==='credit'?'#2563eb':'#dc2626';
     return `<tr>
       <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
@@ -783,29 +759,11 @@ function renderHistoryTable() {
       <td style="font-weight:500">${h.customerName}</td>
       <td class="mono" style="font-size:12px;color:var(--text-muted)">${h.phone}</td>
       <td>${typeLabel}</td>
-      <td style="font-size:12.5px">${h.description}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${h.party||'—'}</td>
+      <td style="font-size:12.5px">${h.description||'—'}</td>
       <td class="mono" style="font-weight:600;color:${col}">${h.type==='credit'?'+':'-'}${fmt(h.amount)}</td>
       <td style="font-size:12px;color:var(--text-muted)">${h.staff||'—'}</td>
     </tr>`;
   }).join('');
-}
-
-// ════════════════════════════════════════════
-//  메뉴 태그 UI
-// ════════════════════════════════════════════
-function buildMenuTagsUI(containerId, selArr) {
-  const wrap = document.getElementById(containerId);
-  if (!wrap) return;
-  wrap.innerHTML = MENU_OPTIONS.map(t=>
-    `<button class="menu-tag-btn${selArr.includes(t)?' sel':''}" onclick="toggleTag(this,'${t}','${containerId}')">${t}</button>`
-  ).join('');
-}
-function toggleTag(btn, tag, containerId) {
-  const arr = containerId === 'menuTagsAdd' ? addTagSel : editTagSel;
-  const idx = arr.indexOf(tag);
-  if (idx === -1) arr.push(tag); else arr.splice(idx,1);
-  btn.classList.toggle('sel');
 }
 
 // ════════════════════════════════════════════
@@ -846,37 +804,29 @@ async function addCustomer() {
   const phone  = document.getElementById('inp-phone').value.trim();
   const amount = parseInt(document.getElementById('inp-amount').value, 10);
   const date   = document.getElementById('inp-date').value || today();
-  const party  = parseInt(document.getElementById('inp-party').value, 10) || 2;
   const staff  = document.getElementById('inp-staff').value.trim();
   const memo   = document.getElementById('inp-memo').value.trim();
 
-  if (!name)            return toast('고객명을 입력해 주세요', 'error');
-  if (!phone)           return toast('연락처를 입력해 주세요', 'error');
+  if (!name)              return toast('고객명을 입력해 주세요', 'error');
+  if (!phone)             return toast('연락처를 입력해 주세요', 'error');
   if (!amount||amount<=0) return toast('올바른 충전 금액을 입력해 주세요', 'error');
 
   setLoading(true);
   try {
-    // 1) customers 테이블에 INSERT
     const rows = await sb('customers?select=*', {
       method: 'POST',
       prefer: 'return=representation',
-      body: { name, phone, paid: amount, used: 0, party, staff, memo, tags: addTagSel, date }
+      body: { name, phone, paid: amount, used: 0, party: 1, staff, memo, tags: [], date }
     });
     const newCust = rows[0];
-
-    // 2) 최초 충전 거래 INSERT
     await sb('transactions', {
       method: 'POST',
       prefer: 'return=minimal',
       body: { customer_id: newCust.id, type:'credit', description:'최초 선결제 충전', amount, party:0, date, staff }
     });
-
     closeModal('addCustomer');
     ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('inp-party').value = 2;
-    document.getElementById('inp-date').value  = today();
-    addTagSel.length = 0;
-    buildMenuTagsUI('menuTagsAdd', addTagSel);
+    document.getElementById('inp-date').value = today();
     toast(`${name} 고객이 등록되었습니다`, 'success');
     await loadAll();
   } catch(e) {
@@ -907,28 +857,24 @@ async function processUse() {
   const amount = parseInt(document.getElementById('use-amount').value, 10);
   const desc   = document.getElementById('use-desc').value.trim();
   const date   = document.getElementById('use-date').value || today();
-  const party  = parseInt(document.getElementById('use-party').value, 10) || 1;
   const staff  = document.getElementById('use-staff').value.trim();
-  if (!amount||amount<=0) return toast('식사 금액을 입력해 주세요', 'error');
-  if (!desc)              return toast('주문 메뉴를 입력해 주세요', 'error');
+  if (!amount||amount<=0)   return toast('사용 금액을 입력해 주세요', 'error');
   if (amount>getBalance(c)) return toast('잔액이 부족합니다', 'error');
 
   setLoading(true);
   try {
-    // used 업데이트
     await sb(`customers?id=eq.${selId}`, {
       method: 'PATCH',
       prefer: 'return=minimal',
       body: { used: (c.used||0) + amount }
     });
-    // 거래 INSERT
     await sb('transactions', {
       method: 'POST',
       prefer: 'return=minimal',
-      body: { customer_id: selId, type:'debit', description: desc, amount, party, date, staff }
+      body: { customer_id: selId, type:'debit', description: desc || '사용', amount, party:0, date, staff }
     });
     closeModal('useAmount');
-    toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`, 'success');
+    toast(`${c.name} · ${fmt(amount)} 사용 처리 완료`, 'success');
     await loadAll();
   } catch(e) {
     toast('처리 실패: ' + e.message, 'error');
@@ -993,7 +939,7 @@ function openHistory(id) {
     ? `<p class="empty-state">내역 없음</p>`
     : [...c.history].reverse().map(h=>`
         <div class="hist-entry">
-          <div class="hist-icon ${h.type}">${h.type==='credit'?'💳':'🍜'}</div>
+          <div class="hist-icon ${h.type}">${h.type==='credit'?'💳':'💸'}</div>
           <div class="hist-info">
             <div class="hist-desc">${h.description}${h.party?` <span style="color:var(--text-muted);font-size:11px">(${h.party}인)</span>`:''}</div>
             <div class="hist-date">${fmtDate(h.date)}${h.staff?' · '+h.staff:''}</div>
@@ -1012,12 +958,8 @@ function openEdit(id) {
   document.getElementById('edit-id').value    = c.id;
   document.getElementById('edit-name').value  = c.name;
   document.getElementById('edit-phone').value = c.phone;
-  document.getElementById('edit-party').value = c.party || 2;
   document.getElementById('edit-staff').value = c.staff || '';
   document.getElementById('edit-memo').value  = c.memo  || '';
-  editTagSel.length = 0;
-  (c.tags||[]).forEach(t=>editTagSel.push(t));
-  buildMenuTagsUI('menuTagsEdit', editTagSel);
   openModal('editCustomer');
 }
 
@@ -1027,7 +969,6 @@ async function saveEdit() {
   if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
   const name  = document.getElementById('edit-name').value.trim()  || c.name;
   const phone = document.getElementById('edit-phone').value.trim() || c.phone;
-  const party = parseInt(document.getElementById('edit-party').value,10) || c.party;
   const staff = document.getElementById('edit-staff').value.trim();
   const memo  = document.getElementById('edit-memo').value.trim();
 
@@ -1036,7 +977,7 @@ async function saveEdit() {
     await sb(`customers?id=eq.${id}`, {
       method: 'PATCH',
       prefer: 'return=minimal',
-      body: { name, phone, party, staff, memo, tags: [...editTagSel] }
+      body: { name, phone, staff, memo }
     });
     closeModal('editCustomer');
     toast('수정이 저장되었습니다', 'success');
