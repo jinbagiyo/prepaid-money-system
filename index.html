@@ -505,16 +505,24 @@
 const MENU_OPTIONS = ['한식','고기','해산물','면류','찌개','술자리','점심정식','도시락','단체예약','채식'];
 
 // ── Data ──
-let customers = JSON.parse(localStorage.getItem('restaurant_prepay_v1') || '[]');
+const STORAGE_KEY = 'restaurant_prepay_v3';
+// 이전 버전 데이터 초기화
+['restaurant_prepay_v1','restaurant_prepay_v2','prepay_v2','prepay_customers'].forEach(k => localStorage.removeItem(k));
+
+let customers = [];
+try { customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { customers = []; }
+
 let activeCustomerId = null;
 let addTagSel = [];
 let editTagSel = [];
 
-function save() { localStorage.setItem('restaurant_prepay_v1', JSON.stringify(customers)); }
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(customers)); } catch(e) { console.error('저장 실패', e); }
+}
 function today() { return new Date().toISOString().slice(0,10); }
-function fmt(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
+function fmt(n) { return Number(n||0).toLocaleString('ko-KR') + '원'; }
 function fmtDate(d) { return d ? d.replace(/-/g,'.') : '—'; }
-function getBalance(c) { return c.paid - c.used; }
+function getBalance(c) { return (c.paid||0) - (c.used||0); }
 function getStatus(c) {
   const b = getBalance(c);
   if (b <= 0) return 'done';
@@ -530,35 +538,13 @@ function formatPhone(el) {
 
 // ── Init ──
 window.onload = () => {
-  ['inp-date','use-date','charge-date'].forEach(id => document.getElementById(id).value = today());
-  if (!customers.length) loadSampleData();
+  ['inp-date','use-date','charge-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today();
+  });
   buildMenuTagsUI('menuTagsAdd', addTagSel);
   renderAll();
 };
-
-function loadSampleData() {
-  customers = [
-    { id:1, name:'김철수', phone:'010-1111-2222', paid:500000, used:187000, party:4, staff:'홍서준', memo:'법인 단체 고객, 매주 금요일 방문', tags:['고기','술자리','단체예약'], date:'2025-01-05', history:[
-      {type:'credit',desc:'최초 선결제 충전',amount:500000,party:0,date:'2025-01-05',staff:'홍서준'},
-      {type:'debit',desc:'삼겹살 4인분, 냉면 4개',amount:96000,party:4,date:'2025-01-10',staff:'홍서준'},
-      {type:'debit',desc:'갈비탕 3개, 막걸리 2병',amount:91000,party:3,date:'2025-01-24',staff:'홍서준'},
-    ]},
-    { id:2, name:'이영희', phone:'010-3333-4444', paid:200000, used:183000, party:2, staff:'김민아', memo:'점심 단골, 혼자 또는 2인', tags:['한식','점심정식','면류'], date:'2025-02-10', history:[
-      {type:'credit',desc:'선결제 충전',amount:200000,party:0,date:'2025-02-10',staff:'김민아'},
-      {type:'debit',desc:'된장찌개 정식 2인',amount:22000,party:2,date:'2025-02-12',staff:'김민아'},
-      {type:'debit',desc:'비빔밥 2개, 냉면 1개',amount:29000,party:2,date:'2025-02-19',staff:'김민아'},
-      {type:'debit',desc:'점심정식 2인',amount:24000,party:2,date:'2025-02-26',staff:'김민아'},
-      {type:'debit',desc:'삼계탕 2인',amount:36000,party:2,date:'2025-03-05',staff:'김민아'},
-      {type:'debit',desc:'점심정식 2인 + 추가반찬',amount:26000,party:2,date:'2025-03-12',staff:'김민아'},
-      {type:'debit',desc:'순두부찌개 2개',amount:20000,party:2,date:'2025-03-19',staff:'김민아'},
-      {type:'debit',desc:'설렁탕 2개',amount:26000,party:2,date:'2025-03-26',staff:'김민아'},
-    ]},
-    { id:3, name:'박준호', phone:'010-5555-6666', paid:300000, used:0, party:6, staff:'홍서준', memo:'생일파티 예약, 알레르기(땅콩)', tags:['단체예약','해산물'], date:'2025-03-01', history:[
-      {type:'credit',desc:'행사 선결제 충전',amount:300000,party:0,date:'2025-03-01',staff:'홍서준'},
-    ]},
-  ];
-  save();
-}
 
 function renderAll() {
   updateStats();
@@ -714,7 +700,7 @@ function renderHistoryTable() {
   if(!all.length){ tbody.innerHTML=`<tr><td colspan="9" class="empty-state">내역 없음</td></tr>`; return; }
   tbody.innerHTML=all.map((h,i)=>{
     const typeLabel=h.type==='credit'?`<span class="badge badge-ok">💳 충전</span>`:`<span class="badge badge-done">🍜 식사</span>`;
-    const col=h.type==='credit'?'var(--accent2)':'var(--red)';
+    const col=h.type==='credit'?'#2563eb':'#dc2626';
     return `<tr>
       <td class="mono" style="color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
       <td class="mono" style="font-size:12px;color:var(--text-muted)">${fmtDate(h.date)}</td>
@@ -751,37 +737,55 @@ function populateUseCustomerSelect() {
   if (prev) sel.value = prev;
 }
 function onUseCustomerChange() {
-  const id = parseInt(document.getElementById('use-customer').value);
+  const id = Number(document.getElementById('use-customer').value);
   if (!id) return;
-  const c = customers.find(x=>x.id===id);
+  const c = customers.find(x => x.id === id);
+  if (!c) return;
   activeCustomerId = c.id;
-  document.getElementById('useModal-sub').textContent = `${c.name} · ${c.phone}`;
+  document.getElementById('useModal-sub').textContent  = `${c.name} · ${c.phone}`;
   document.getElementById('use-paid-disp').textContent = fmt(c.paid);
   document.getElementById('use-used-disp').textContent = fmt(c.used);
   document.getElementById('use-bal-disp').textContent  = fmt(getBalance(c));
-  document.getElementById('use-party').value = c.party||2;
+  document.getElementById('use-party').value = c.party || 2;
 }
 
 // ── Add Customer ──
 function addCustomer() {
-  const name=document.getElementById('inp-name').value.trim();
-  const phone=document.getElementById('inp-phone').value.trim();
-  const amount=parseInt(document.getElementById('inp-amount').value);
-  const date=document.getElementById('inp-date').value||today();
-  const party=parseInt(document.getElementById('inp-party').value)||2;
-  const staff=document.getElementById('inp-staff').value.trim();
-  const memo=document.getElementById('inp-memo').value.trim();
-  if(!name)  return toast('고객명을 입력해 주세요','error');
-  if(!phone) return toast('연락처를 입력해 주세요','error');
-  if(!amount||amount<=0) return toast('올바른 충전 금액을 입력해 주세요','error');
-  customers.push({id:Date.now(),name,phone,paid:amount,used:0,party,staff,memo,tags:[...addTagSel],date,
-    history:[{type:'credit',desc:'최초 선결제 충전',amount,party:0,date,staff}]});
-  save(); renderAll(); closeModal('addCustomer');
-  ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('inp-party').value=2;
-  document.getElementById('inp-date').value=today();
-  addTagSel.length=0; buildMenuTagsUI('menuTagsAdd',addTagSel);
-  toast(`${name} 고객이 등록되었습니다`,'success');
+  const name   = document.getElementById('inp-name').value.trim();
+  const phone  = document.getElementById('inp-phone').value.trim();
+  const amount = parseInt(document.getElementById('inp-amount').value, 10);
+  const date   = document.getElementById('inp-date').value || today();
+  const party  = parseInt(document.getElementById('inp-party').value, 10) || 2;
+  const staff  = document.getElementById('inp-staff').value.trim();
+  const memo   = document.getElementById('inp-memo').value.trim();
+
+  if (!name)            return toast('고객명을 입력해 주세요', 'error');
+  if (!phone)           return toast('연락처를 입력해 주세요', 'error');
+  if (!amount || amount <= 0) return toast('올바른 충전 금액을 입력해 주세요', 'error');
+
+  const newCustomer = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    name, phone,
+    paid: amount, used: 0,
+    party, staff, memo,
+    tags: [...addTagSel],
+    date,
+    history: [{type:'credit', desc:'최초 선결제 충전', amount, party:0, date, staff}]
+  };
+
+  customers.push(newCustomer);
+  save();
+  renderAll();
+  closeModal('addCustomer');
+
+  // 폼 초기화
+  ['inp-name','inp-phone','inp-amount','inp-staff','inp-memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inp-party').value = 2;
+  document.getElementById('inp-date').value = today();
+  addTagSel.length = 0;
+  buildMenuTagsUI('menuTagsAdd', addTagSel);
+
+  toast(`${name} 고객이 등록되었습니다`, 'success');
 }
 
 // ── Use (사이드바에서 열기) ──
@@ -790,61 +794,68 @@ function closeModal(id) { document.getElementById('modal-'+id).classList.remove(
 
 // 고객 목록에서 바로 열기
 function openUseFor(id) {
+  const numId = Number(id);
   populateUseCustomerSelect();
-  document.getElementById('use-customer').value = id;
-  activeCustomerId = id;
+  document.getElementById('use-customer').value = numId;
+  activeCustomerId = numId;
   onUseCustomerChange();
-  ['use-amount','use-desc','use-staff'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('use-date').value=today();
+  ['use-amount','use-desc','use-staff'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('use-date').value = today();
   openModal('useAmount');
 }
 
 function processUse() {
-  const selId=parseInt(document.getElementById('use-customer').value);
-  if(!selId) return toast('고객을 선택해 주세요','error');
-  const c=customers.find(x=>x.id===selId);
-  const amount=parseInt(document.getElementById('use-amount').value);
-  const desc=document.getElementById('use-desc').value.trim();
-  const date=document.getElementById('use-date').value||today();
-  const party=parseInt(document.getElementById('use-party').value)||1;
-  const staff=document.getElementById('use-staff').value.trim();
-  if(!amount||amount<=0) return toast('식사 금액을 입력해 주세요','error');
-  if(!desc) return toast('주문 메뉴를 입력해 주세요','error');
-  if(amount>getBalance(c)) return toast('잔액이 부족합니다','error');
-  c.used+=amount;
-  c.history.push({type:'debit',desc,amount,party,date,staff});
+  const selId = Number(document.getElementById('use-customer').value);
+  if (!selId) return toast('고객을 선택해 주세요', 'error');
+  const c = customers.find(x => x.id === selId);
+  if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
+  const amount = parseInt(document.getElementById('use-amount').value, 10);
+  const desc   = document.getElementById('use-desc').value.trim();
+  const date   = document.getElementById('use-date').value || today();
+  const party  = parseInt(document.getElementById('use-party').value, 10) || 1;
+  const staff  = document.getElementById('use-staff').value.trim();
+  if (!amount || amount <= 0) return toast('식사 금액을 입력해 주세요', 'error');
+  if (!desc) return toast('주문 메뉴를 입력해 주세요', 'error');
+  if (amount > getBalance(c)) return toast('잔액이 부족합니다', 'error');
+  c.used += amount;
+  c.history.push({type:'debit', desc, amount, party, date, staff});
   save(); renderAll(); closeModal('useAmount');
-  toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`,'success');
+  toast(`${c.name} · ${fmt(amount)} 식사 처리 완료`, 'success');
 }
 
 // ── Charge ──
 function openCharge(id) {
-  activeCustomerId=id;
-  const c=customers.find(x=>x.id===id);
-  document.getElementById('chargeModal-sub').textContent=`${c.name} · ${c.phone}`;
-  ['charge-amount','charge-desc'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('charge-date').value=today();
+  const numId = Number(id);
+  activeCustomerId = numId;
+  const c = customers.find(x => x.id === numId);
+  if (!c) return;
+  document.getElementById('chargeModal-sub').textContent = `${c.name} · ${c.phone}`;
+  ['charge-amount','charge-desc'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('charge-date').value = today();
   openModal('chargeAmount');
 }
 function processCharge() {
-  const c=customers.find(x=>x.id===activeCustomerId);
-  const amount=parseInt(document.getElementById('charge-amount').value);
-  const desc=document.getElementById('charge-desc').value.trim()||'추가 충전';
-  const date=document.getElementById('charge-date').value||today();
-  if(!amount||amount<=0) return toast('충전 금액을 입력해 주세요','error');
-  c.paid+=amount;
-  c.history.push({type:'credit',desc,amount,party:0,date});
+  const c = customers.find(x => x.id === activeCustomerId);
+  if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
+  const amount = parseInt(document.getElementById('charge-amount').value, 10);
+  const desc   = document.getElementById('charge-desc').value.trim() || '추가 충전';
+  const date   = document.getElementById('charge-date').value || today();
+  if (!amount || amount <= 0) return toast('충전 금액을 입력해 주세요', 'error');
+  c.paid += amount;
+  c.history.push({type:'credit', desc, amount, party:0, date});
   save(); renderAll(); closeModal('chargeAmount');
-  toast(`${fmt(amount)} 충전 완료`,'success');
+  toast(`${fmt(amount)} 충전 완료`, 'success');
 }
 
 // ── History Modal ──
 function openHistory(id) {
-  const c=customers.find(x=>x.id===id);
-  document.getElementById('hist-title').textContent=`${c.name} 거래 내역`;
-  document.getElementById('hist-sub').textContent=`${c.phone} · 잔액 ${fmt(getBalance(c))}`;
-  const body=document.getElementById('hist-body');
-  body.innerHTML=(!c.history||!c.history.length)
+  const numId = Number(id);
+  const c = customers.find(x => x.id === numId);
+  if (!c) return;
+  document.getElementById('hist-title').textContent = `${c.name} 거래 내역`;
+  document.getElementById('hist-sub').textContent   = `${c.phone} · 잔액 ${fmt(getBalance(c))}`;
+  const body = document.getElementById('hist-body');
+  body.innerHTML = (!c.history || !c.history.length)
     ? `<p class="empty-state">내역 없음</p>`
     : [...c.history].reverse().map(h=>`
         <div class="hist-entry">
@@ -860,37 +871,43 @@ function openHistory(id) {
 
 // ── Edit ──
 function openEdit(id) {
-  const c=customers.find(x=>x.id===id);
-  document.getElementById('edit-id').value=c.id;
-  document.getElementById('edit-name').value=c.name;
-  document.getElementById('edit-phone').value=c.phone;
-  document.getElementById('edit-party').value=c.party||2;
-  document.getElementById('edit-staff').value=c.staff||'';
-  document.getElementById('edit-memo').value=c.memo||'';
-  editTagSel.length=0;
-  (c.tags||[]).forEach(t=>editTagSel.push(t));
-  buildMenuTagsUI('menuTagsEdit',editTagSel);
+  const numId = Number(id);
+  const c = customers.find(x => x.id === numId);
+  if (!c) return;
+  document.getElementById('edit-id').value    = c.id;
+  document.getElementById('edit-name').value  = c.name;
+  document.getElementById('edit-phone').value = c.phone;
+  document.getElementById('edit-party').value = c.party || 2;
+  document.getElementById('edit-staff').value = c.staff || '';
+  document.getElementById('edit-memo').value  = c.memo || '';
+  editTagSel.length = 0;
+  (c.tags || []).forEach(t => editTagSel.push(t));
+  buildMenuTagsUI('menuTagsEdit', editTagSel);
   openModal('editCustomer');
 }
 function saveEdit() {
-  const id=parseInt(document.getElementById('edit-id').value);
-  const c=customers.find(x=>x.id===id);
-  c.name=document.getElementById('edit-name').value.trim()||c.name;
-  c.phone=document.getElementById('edit-phone').value.trim()||c.phone;
-  c.party=parseInt(document.getElementById('edit-party').value)||c.party;
-  c.staff=document.getElementById('edit-staff').value.trim();
-  c.memo=document.getElementById('edit-memo').value.trim();
-  c.tags=[...editTagSel];
+  const id = Number(document.getElementById('edit-id').value);
+  const c  = customers.find(x => x.id === id);
+  if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
+  c.name  = document.getElementById('edit-name').value.trim()  || c.name;
+  c.phone = document.getElementById('edit-phone').value.trim() || c.phone;
+  c.party = parseInt(document.getElementById('edit-party').value, 10) || c.party;
+  c.staff = document.getElementById('edit-staff').value.trim();
+  c.memo  = document.getElementById('edit-memo').value.trim();
+  c.tags  = [...editTagSel];
   save(); renderAll(); closeModal('editCustomer');
-  toast('수정이 저장되었습니다','success');
+  toast('수정이 저장되었습니다', 'success');
 }
 
 // ── Delete ──
 function deleteCustomer(id) {
-  const c=customers.find(x=>x.id===id);
-  if(!confirm(`'${c.name}' 고객을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-  customers=customers.filter(x=>x.id!==id);
-  save(); renderAll();
+  const numId = Number(id);
+  const c = customers.find(x => x.id === numId);
+  if (!c) return toast('고객을 찾을 수 없습니다', 'error');
+  if (!window.confirm(`'${c.name}' 고객을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  customers = customers.filter(x => x.id !== numId);
+  save();
+  renderAll();
   toast(`${c.name} 고객이 삭제되었습니다`);
 }
 
