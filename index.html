@@ -187,6 +187,97 @@
   .menu-tag-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all 0.12s;font-family:var(--sans);font-weight:500;}
   .menu-tag-btn:hover{border-color:#93c5fd;color:var(--blue-text);}
   .menu-tag-btn.sel{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue-text);font-weight:600;}
+
+  /* ── 모바일 하단 네비게이션 ── */
+  .mobile-nav{display:none;}
+
+  /* ── 반응형 ── */
+
+  /* 태블릿 (768px ~ 1024px) */
+  @media (max-width:1024px) {
+    .shell{grid-template-columns:180px 1fr;}
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .view{padding:18px 20px;}
+    .topbar{padding:14px 20px;}
+    td,th{padding:10px 12px;}
+  }
+
+  /* 모바일 (~ 767px) */
+  @media (max-width:767px) {
+    /* 사이드바 숨기고 하단 네비로 대체 */
+    .shell{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+
+    /* 상단바 */
+    .topbar{padding:12px 16px;}
+    .topbar-title{font-size:15px;}
+    .topbar-sub{display:none;}
+    .topbar .btn-ghost{display:none;}
+    .topbar .btn-primary{padding:7px 12px;font-size:12px;}
+
+    /* 뷰 */
+    .view{padding:14px 14px 80px;}
+
+    /* 통계 카드 2열 */
+    .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .stat-card{padding:14px;}
+    .stat-value{font-size:17px;}
+    .stat-icon{font-size:18px;}
+
+    /* 대시보드 테이블 스크롤 */
+    .dash-card{padding:14px;}
+    .dash-card-title{font-size:12px;margin-bottom:10px;}
+
+    /* 테이블 가로 스크롤 */
+    .table-wrap{overflow-x:auto;}
+    table{min-width:600px;}
+    td,th{padding:9px 10px;font-size:12px;}
+
+    /* 툴바 */
+    .toolbar{gap:8px;}
+    .filter-select{font-size:12px;padding:7px 8px;}
+    .search-input{font-size:12px;}
+
+    /* 폼 */
+    .form-row{grid-template-columns:1fr;}
+    .modal{border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;max-height:90vh;margin:0;}
+    .modal-overlay.open{align-items:flex-end;}
+    @keyframes modalIn{from{opacity:0;transform:translateY(100%);}to{opacity:1;transform:none;}}
+
+    /* 버튼 */
+    .btn-sm{padding:5px 8px;font-size:11px;}
+    .action-btns{gap:4px;}
+
+    /* 하단 네비 표시 */
+    .mobile-nav{
+      display:flex;
+      position:fixed;bottom:0;left:0;right:0;
+      background:#fff;
+      border-top:1px solid var(--border);
+      box-shadow:0 -2px 12px rgba(0,0,0,0.08);
+      z-index:50;
+      padding:0;
+      height:60px;
+    }
+    .mobile-nav-item{
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:3px;cursor:pointer;color:var(--text-dim);
+      font-size:10px;font-weight:600;letter-spacing:0.2px;
+      padding:6px 4px;border:none;background:none;
+      font-family:var(--sans);transition:color 0.15s;
+    }
+    .mobile-nav-item.active{color:var(--accent);}
+    .mobile-nav-item .mn-icon{font-size:20px;line-height:1;}
+    .mobile-nav-sep{width:1px;background:var(--border);margin:10px 0;}
+  }
+
+  /* 아주 작은 화면 (~ 380px) */
+  @media (max-width:380px) {
+    .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+    .stat-value{font-size:15px;}
+    .view{padding:12px 10px 80px;}
+    .topbar{padding:10px 12px;}
+  }
 </style>
 </head>
 <body>
@@ -359,6 +450,29 @@
   </div><!-- /main -->
 </div><!-- /shell -->
 
+<!-- 모바일 하단 네비게이션 -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-item active" id="mnav-dashboard" onclick="showView('dashboard');setMobileNav('dashboard')">
+    <span class="mn-icon">📊</span>대시보드
+  </button>
+  <div class="mobile-nav-sep"></div>
+  <button class="mobile-nav-item" id="mnav-customers" onclick="showView('customers');setMobileNav('customers')">
+    <span class="mn-icon">👤</span>고객
+  </button>
+  <div class="mobile-nav-sep"></div>
+  <button class="mobile-nav-item" id="mnav-add" onclick="openModal('addCustomer')">
+    <span class="mn-icon">➕</span>등록
+  </button>
+  <div class="mobile-nav-sep"></div>
+  <button class="mobile-nav-item" id="mnav-use" onclick="openModal('useAmount')">
+    <span class="mn-icon">💳</span>사용
+  </button>
+  <div class="mobile-nav-sep"></div>
+  <button class="mobile-nav-item" id="mnav-history" onclick="showView('history');setMobileNav('history')">
+    <span class="mn-icon">📋</span>내역
+  </button>
+</nav>
+
 <div class="toast-area" id="toastArea"></div>
 
 <!-- 로딩 오버레이 -->
@@ -381,7 +495,7 @@
         <div class="form-group"><label>연락처 *</label><input class="form-input" id="inp-phone" placeholder="010-0000-0000" oninput="formatPhone(this)"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="inp-amount" type="number" placeholder="100000" min="0"><span class="form-hint">원 단위 숫자만 입력</span></div>
+        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="inp-amount" type="text" inputmode="numeric" placeholder="0" oninput="formatAmount(this)"><span class="form-hint">숫자만 입력하세요 (자동으로 , 표시)</span></div>
         <div class="form-group"><label>등록일</label><input class="form-input" id="inp-date" type="date"></div>
       </div>
       <div class="form-group full"><label>담당 직원</label><input class="form-input" id="inp-staff" placeholder="담당자 이름"></div>
@@ -409,7 +523,7 @@
         </select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>사용 금액 *</label><input class="form-input" id="use-amount" type="number" placeholder="0" min="0"></div>
+        <div class="form-group"><label>사용 금액 *</label><input class="form-input" id="use-amount" type="text" inputmode="numeric" placeholder="0" oninput="formatAmount(this)"></div>
         <div class="form-group"><label>날짜</label><input class="form-input" id="use-date" type="date"></div>
       </div>
       <div class="form-row">
@@ -439,7 +553,7 @@
     </div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="charge-amount" type="number" placeholder="0" min="0"></div>
+        <div class="form-group"><label>충전 금액 *</label><input class="form-input" id="charge-amount" type="text" inputmode="numeric" placeholder="0" oninput="formatAmount(this)"></div>
         <div class="form-group"><label>충전 날짜</label><input class="form-input" id="charge-date" type="date"></div>
       </div>
       <div class="form-group full"><label>비고</label><input class="form-input" id="charge-desc" placeholder="예) 추가 충전, 법인카드 결제 등"></div>
@@ -538,6 +652,20 @@ function formatPhone(el) {
   else if (v.length > 3) v = v.replace(/(\d{3})(\d+)/,'$1-$2');
   el.value = v;
 }
+// 금액 입력 시 3자리마다 콤마 자동 표시
+function formatAmount(el) {
+  const pos = el.selectionStart;
+  const before = el.value.length;
+  const raw = el.value.replace(/[^\d]/g,'');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+  // 커서 위치 보정
+  const after = el.value.length;
+  el.selectionStart = el.selectionEnd = Math.max(0, pos + (after - before));
+}
+// 콤마 제거 후 정수 반환
+function parseAmount(el) {
+  return parseInt(el.value.replace(/,/g,''), 10) || 0;
+}
 
 // 로딩 오버레이
 function setLoading(on) {
@@ -613,6 +741,12 @@ function showView(name) {
   document.getElementById('nav-'+name).classList.add('active');
   document.getElementById('viewTitle').textContent = VIEW_META[name].title;
   document.getElementById('viewSub').textContent   = VIEW_META[name].sub;
+  setMobileNav(name);
+}
+function setMobileNav(name) {
+  document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('mnav-'+name);
+  if (el) el.classList.add('active');
 }
 
 // ════════════════════════════════════════════
@@ -802,7 +936,7 @@ function closeModal(id) { document.getElementById('modal-'+id).classList.remove(
 async function addCustomer() {
   const name   = document.getElementById('inp-name').value.trim();
   const phone  = document.getElementById('inp-phone').value.trim();
-  const amount = parseInt(document.getElementById('inp-amount').value, 10);
+  const amount = parseAmount(document.getElementById('inp-amount'));
   const date   = document.getElementById('inp-date').value || today();
   const staff  = document.getElementById('inp-staff').value.trim();
   const memo   = document.getElementById('inp-memo').value.trim();
@@ -854,7 +988,7 @@ async function processUse() {
   if (!selId) return toast('고객을 선택해 주세요', 'error');
   const c      = customers.find(x=>x.id===selId);
   if (!c)     return toast('고객 정보를 찾을 수 없습니다', 'error');
-  const amount = parseInt(document.getElementById('use-amount').value, 10);
+  const amount = parseAmount(document.getElementById('use-amount'));
   const desc   = document.getElementById('use-desc').value.trim();
   const date   = document.getElementById('use-date').value || today();
   const staff  = document.getElementById('use-staff').value.trim();
@@ -899,7 +1033,7 @@ function openCharge(id) {
 async function processCharge() {
   const c = customers.find(x=>x.id===activeCustomerId);
   if (!c) return toast('고객 정보를 찾을 수 없습니다', 'error');
-  const amount = parseInt(document.getElementById('charge-amount').value, 10);
+  const amount = parseAmount(document.getElementById('charge-amount'));
   const desc   = document.getElementById('charge-desc').value.trim() || '추가 충전';
   const date   = document.getElementById('charge-date').value || today();
   if (!amount||amount<=0) return toast('충전 금액을 입력해 주세요', 'error');
